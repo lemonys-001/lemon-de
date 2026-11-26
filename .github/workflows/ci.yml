@@ -27,5 +27,9 @@ jobs:
         run: cargo check --locked
       - name: Build release
         run: cargo build --release --locked
-      - name: Smoke-test CLI
-        run: ./target/release/lemon --help && ./target/release/lemon --version
+      - name: Smoke-test CLI and installer
+        run: |
+          ./target/release/lemon --help
+          ./target/release/lemon --version
+          bash -n install.sh tests/install-smoke.sh
+          tests/install-smoke.sh

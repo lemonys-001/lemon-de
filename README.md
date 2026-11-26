@@ -21,7 +21,7 @@ The installer checks the latest GitHub release for a matching precompiled binary
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash
 ```
 
-This installs to `$HOME/.local` by default. Add `$HOME/.local/bin` to `PATH`. To update an existing install:
+This installs to `/usr/local` by default, using `sudo` when needed and falling back to `$HOME/.local` if `sudo` is unavailable. Re-running the installer checks the installed version: it asks before updating an older install, skips the same version, and refuses an accidental downgrade. Piped/non-interactive runs proceed without prompting. Use `--update` to make the version check explicit, `--yes` for automation, or `--force` to reinstall/allow a downgrade. Use `--version VERSION` to pin a release and `--build-from-source` to skip prebuilt binaries.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --update
