@@ -1,6 +1,6 @@
 # Install LDE on Linux
 
-LDE is a source build for the current machine. Runtime dependencies are Rust's standard library and system Xlib; no external Rust crates are needed. You need a working X11 server/session and a C linker.
+The installer prefers a matching precompiled Linux binary from the latest GitHub Release, and builds the release source locally if no matching asset exists. A source fallback needs Rust/Cargo, a C linker and Xlib development files. You need a working X11 server/session either way.
 
 ## Dependencies
 
@@ -12,17 +12,24 @@ LDE is a source build for the current machine. Runtime dependencies are Rust's s
 
 Install Rust stable/Cargo separately if your distribution does not provide a sufficiently current toolchain.
 
-## Build and install
+## Install or update
+
+Review the script and then run:
 
 ```sh
-git clone https://github.com/lemonys-001/lemon-de.git
-cd lemon-de
-./install.sh --prefix "$HOME/.local"
+curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash
 ```
 
-Add `$HOME/.local/bin` to `PATH`. For a system install, run `./install.sh` with privileges appropriate for `/usr/local`; it builds the release executable and creates `share/xsessions/lde.desktop`. The script never installs packages or silently escalates privileges.
+It installs to `$HOME/.local` and never silently escalates privileges. Add `$HOME/.local/bin` to `PATH`. Update with `--update`, or force a local build with `--source`:
 
-To build without installing:
+```sh
+curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --update
+curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --source
+```
+
+Assets are named `lemon-vVERSION-TARGET.tar.gz`. The release workflow builds seven Linux targets; maintainers attach its workflow artifacts to the release. Missing assets fall back to a native build.
+
+To build a checkout without installing:
 
 ```sh
 cargo build --release --locked
