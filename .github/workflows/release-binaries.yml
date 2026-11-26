@@ -7,7 +7,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -18,31 +18,75 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
+            multiarch: ''
+            linker: ''
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
+            multiarch: ''
+            linker: ''
+          - target: i686-unknown-linux-gnu
+            runner: ubuntu-24.04
+            multiarch: i386
+            linker: i686-linux-gnu-gcc
+          - target: armv7-unknown-linux-gnueabihf
+            runner: ubuntu-24.04
+            multiarch: armhf
+            linker: arm-linux-gnueabihf-gcc
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - name: Install host X11 development files
-        run: sudo apt-get update && sudo apt-get install -y libx11-dev
+      - name: Install host and target X11 development files
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev
+          if [[ -n "${{ matrix.multiarch }}" ]]; then
+            sudo dpkg --add-architecture "${{ matrix.multiarch }}"
+            sudo apt-get update
+            case "${{ matrix.target }}" in
+              i686-*) sudo apt-get install -y gcc-i686-linux-gnu libx11-dev:i386 ;;
+              armv7-*) sudo apt-get install -y gcc-arm-linux-gnueabihf libx11-dev:armhf ;;
+            esac
+          fi
       - name: Build binary
-        run: cargo build --release --locked --target "${{ matrix.target }}"
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          TARGET_LINKER: ${{ matrix.linker }}
+        run: |
+          if [[ -n "$TARGET_LINKER" ]]; then
+            key=$(echo "$TARGET" | tr '[:lower:]-' '[:upper:]_')
+            export "CARGO_TARGET_${key}_LINKER=$TARGET_LINKER"
+          fi
+          set +e
+          cargo build --release --locked --target "$TARGET" > "$RUNNER_TEMP/build.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/build.log"
+          if [[ $status -ne 0 ]]; then
+            diagnostic=$(tail -n 10 "$RUNNER_TEMP/build.log" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Build/link diagnostics::$diagnostic"
+            exit "$status"
+          fi
       - name: Package binary
         id: package
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
           if [[ "$GITHUB_REF_NAME" == v* ]]; then
             tag="$GITHUB_REF_NAME"
+            version=$(sed -n '/^\[package\]/,/^\[/p' Cargo.toml | sed -n 's/^version = "\([^"]*\)"/\1/p' | head -n1)
+            [[ "$tag" == "v$version" ]] || { echo "Tag $tag does not match Cargo.toml version $version" >&2; exit 1; }
           else
             version=$(sed -n '/^\[package\]/,/^\[/p' Cargo.toml | sed -n 's/^version = "\([^"]*\)"/\1/p' | head -n1)
             tag="v$version"
           fi
           mkdir -p dist/root
-          install -m 755 "target/${{ matrix.target }}/release/lemon" dist/root/lemon
-          archive="lemon-${tag}-${{ matrix.target }}.tar.gz"
+          install -m 755 "target/$TARGET/release/lemon" dist/root/lemon
+          archive="lemon-${tag}-${TARGET}.tar.gz"
           tar -C dist/root -czf "dist/$archive" lemon
           sha256sum "dist/$archive" > "dist/$archive.sha256"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
@@ -53,3 +97,24 @@ jobs:
           path: dist/lemon-*
           if-no-files-found: error
           retention-days: 30
+
+  publish-release:
+    name: Publish GitHub Release with binaries
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all architecture packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: lde-*
+          path: dist
+          merge-multiple: true
+      - name: Create release and attach binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          name: LDE ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          files: dist/*
