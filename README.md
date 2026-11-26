@@ -27,7 +27,7 @@ This installs to `$HOME/.local` by default. Add `$HOME/.local/bin` to `PATH`. To
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --update
 ```
 
-Use `--prefix /usr/local` for a system-wide install (run with appropriate privileges). The [release-binary workflow](.github/workflows/release-binaries.yml) builds x86_64, AArch64, i686, ARMv7, RISC-V64, PowerPC64LE and s390x archives as downloadable Actions artifacts; attach those archives to a GitHub Release for the installer to consume. Unsupported/missing assets trigger the source-build fallback. See [Installation](docs/INSTALL.md) for details.
+Use `--prefix /usr/local` for a system-wide install (run with appropriate privileges). The [release-binary workflow](.github/workflows/release-binaries.yml) builds x86_64 and AArch64 archives as downloadable Actions artifacts; attach those archives to a GitHub Release for the installer to consume. For other/missing architecture assets, the installer falls back to a native source build. See [Installation](docs/INSTALL.md) for details.
 
 ## Termux and VNC
 
