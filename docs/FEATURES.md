@@ -2,7 +2,7 @@
 
 LDE is an early, useful X11 shell prototype, not a finished general-purpose desktop environment. “Fast”, “light” and “all architecture” need repeatable measurements and broad device testing; we do not publish unsupported benchmark or compatibility claims.
 
-## Available in 0.1.0
+## Available in 0.1.1
 
 - Rust executable with no third-party Rust crate dependencies.
 - X11 root-window management and simple floating placement for newly mapped windows.
