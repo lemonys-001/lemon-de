@@ -1,12 +1,12 @@
 # Installation guide
 
-LDE is source-first: the installer compiles for the machine it runs on. That avoids shipping one binary per CPU and works wherever Rust, a C linker, and Xlib are available. There are no prebuilt binaries attached to the preview release; maintainers can attach tested builds later.
+The installer checks the latest GitHub release for a binary matching the host architecture. If an asset is absent or unusable, it downloads the tagged source and builds natively on the user's machine. This fallback needs Rust/Cargo, a C linker, and Xlib development files. The release build workflow produces one `.tar.gz` and `.sha256` artifact per target; maintainers can attach the generated archives to the GitHub release. Native-build fallback is intended for Linux architectures with Rust and Xlib support.
 
 ## Requirements
 
 - A working X11 server/session. LDE does **not** support Wayland as a compositor.
-- Rust stable and Cargo (edition 2021).
-- C compiler/linker and Xlib development library. The Rust code calls the Xlib ABI directly; no Rust crates are downloaded.
+- For a matching release binary: `curl`, `tar`, and a Linux X11 runtime (`libX11`).
+- For source fallback: Rust stable/Cargo, a C compiler/linker and Xlib development library. The Rust code calls the Xlib ABI directly; no third-party Rust crates are needed.
 - For a useful session: a terminal (`xterm`, `foot`, `kitty`, etc.), file manager, browser, and optionally `rofi` or `dmenu`.
 
 ### Install build dependencies
@@ -24,26 +24,36 @@ Pick the matching command for the Linux distribution. Package names can differ a
 
 Install Rust with your distribution's Rust package or [rustup](https://www.rust-lang.org/tools/install). The installer intentionally does not invoke a package manager or request root access on your behalf.
 
-## Install from a checkout
+## Install or update from a release
+
+Review the script, then use the one-line installer:
 
 ```sh
-git clone https://github.com/lemonys-001/lemon-de.git
-cd lemon-de
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash
 ```
 
-The default prefix is `/usr/local`; installing there typically needs administrator privileges. For a per-user install:
+It installs to `$HOME/.local` by default, picks a matching release asset when available, and otherwise builds the latest release source. Add `$HOME/.local/bin` to `PATH`. To update an existing install, pass `--update`; to force a source build, pass `--source`:
 
 ```sh
-./install.sh --prefix "$HOME/.local"
+curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --update
+curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --source
 ```
 
-Make sure `$HOME/.local/bin` is in `PATH`. The `.desktop` session descriptor is written under `<prefix>/share/xsessions/lde.desktop`. Some display managers only scan `/usr/share/xsessions`; in that case use a system prefix or copy the session entry into the display manager's session directory. The session entry starts the installed `lemon` binary.
+Use `--prefix /usr/local` for a system-wide install (run with privileges appropriate for that prefix). The `.desktop` session descriptor is written under `<prefix>/share/xsessions/lde.desktop`. Some display managers only scan `/usr/share/xsessions`; in that case use a system prefix or copy the session entry into the display manager's session directory.
 
-To remove the installed binary and session entry:
+Remove an install with `--uninstall` (and the same prefix if it differs from the default):
 
 ```sh
-./install.sh --prefix "$HOME/.local" --uninstall
+curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --uninstall
+```
+
+## Build the checkout
+
+To compile the source tree you have checked out (rather than the latest tagged release):
+
+```sh
+cargo build --release --locked
+./target/release/lemon --help
 ```
 
 ## Manual build
@@ -58,7 +68,9 @@ cargo build --release --locked
 
 ## CPU architectures
 
-The code has no architecture-specific Rust dependencies and is intended to build natively on x86_64, AArch64/arm64, 32-bit ARM (subject to toolchain/Xlib availability), and other Rust-supported Linux targets with Xlib. That is a portability goal, not a claim that every architecture has been tested or has a packaged X server. Build on the target device for the most reliable result. Cross-compilation additionally requires a target C toolchain and target Xlib.
+The release-binary workflow targets `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `i686-unknown-linux-gnu`, `armv7-unknown-linux-gnueabihf`, `riscv64gc-unknown-linux-gnu`, `powerpc64le-unknown-linux-gnu`, and `s390x-unknown-linux-gnu`. Binary archives are named `lemon-vVERSION-TARGET.tar.gz`; the installer looks for that exact name. Workflow artifacts must be downloaded and attached to a GitHub release before the installer can use them.
+
+For other Linux CPUs/libc combinations, the installer falls back to a native source build. This is conditional on Rust, a compatible C toolchain, Xlib development files and an X11-capable OS being available; it does not mean every CPU or device has been tested. Cross-compilation also needs a target C toolchain and target Xlib.
 
 ## Troubleshooting
 

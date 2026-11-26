@@ -1,0 +1,81 @@
+name: Build release binaries
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: false
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+            cross: false
+          - target: i686-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: armv7-unknown-linux-gnueabihf
+            runner: ubuntu-24.04
+            cross: true
+          - target: riscv64gc-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: powerpc64le-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+          - target: s390x-unknown-linux-gnu
+            runner: ubuntu-24.04
+            cross: true
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install host X11 development files
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --locked
+      - name: Build binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.cross }}" == "true" ]]; then
+            cross build --release --locked --target "${{ matrix.target }}"
+          else
+            cargo build --release --locked --target "${{ matrix.target }}"
+          fi
+      - name: Package binary
+        id: package
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" == v* ]]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            version=$(sed -n '/^\[package\]/,/^\[/p' Cargo.toml | sed -n 's/^version = "\([^"]*\)"/\1/p' | head -n1)
+            tag="v$version"
+          fi
+          mkdir -p dist/root
+          install -m 755 "target/${{ matrix.target }}/release/lemon" dist/root/lemon
+          archive="lemon-${tag}-${{ matrix.target }}.tar.gz"
+          tar -C dist/root -czf "dist/$archive" lemon
+          sha256sum "dist/$archive" > "dist/$archive.sha256"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Upload downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lde-${{ steps.package.outputs.tag }}-${{ matrix.target }}
+          path: dist/lemon-*
+          if-no-files-found: error
+          retention-days: 30

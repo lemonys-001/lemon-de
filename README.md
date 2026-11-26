@@ -15,15 +15,19 @@ LDE is a deliberately small **Rust/X11 desktop shell and window manager**. The f
 
 ## Quick install (Linux)
 
-Prerequisites: Rust/Cargo, a C toolchain, and X11 development/runtime files (`libX11`; usually package `libx11-dev`, `libX11-devel`, or `libx11`). A terminal and application launcher are also recommended.
+The installer checks the latest GitHub release for a matching precompiled binary first. If the release has no binary for your CPU, it downloads the matching source and builds locally. The fallback needs Rust/Cargo, a C toolchain, and X11 development files (`libX11`; usually `libx11-dev`, `libX11-devel`, or `libx11`). Review the [installer script](install.sh) before running it through Bash.
 
 ```sh
-git clone https://github.com/lemonys-001/lemon-de.git
-cd lemon-de
-./install.sh --prefix "$HOME/.local"
+curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash
 ```
 
-Add `$HOME/.local/bin` to `PATH`. For a system-wide install (default prefix `/usr/local`), build as your user and run the installer with appropriate privileges; the installer itself does not invoke `sudo` or install system packages. See [Installation](docs/INSTALL.md) for distro, source, architecture and troubleshooting guidance.
+This installs to `$HOME/.local` by default. Add `$HOME/.local/bin` to `PATH`. To update an existing install:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --update
+```
+
+Use `--prefix /usr/local` for a system-wide install (run with appropriate privileges). The [release-binary workflow](.github/workflows/release-binaries.yml) builds x86_64, AArch64, i686, ARMv7, RISC-V64, PowerPC64LE and s390x archives as downloadable Actions artifacts; attach those archives to a GitHub Release for the installer to consume. Unsupported/missing assets trigger the source-build fallback. See [Installation](docs/INSTALL.md) for details.
 
 ## Termux and VNC
 
