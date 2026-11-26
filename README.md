@@ -27,7 +27,7 @@ This installs to `/usr/local` by default, using `sudo` when needed and falling b
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --update
 ```
 
-Use `--prefix /usr/local` for a system-wide install (run with appropriate privileges). The [release-binary workflow](.github/workflows/release-binaries.yml) builds x86_64 and AArch64 archives as downloadable Actions artifacts; attach those archives to a GitHub Release for the installer to consume. For other/missing architecture assets, the installer falls back to a native source build. See [Installation](docs/INSTALL.md) for details.
+Use `--prefix /usr/local` for a system-wide install (run with appropriate privileges). The [release workflow](.github/workflows/release-binaries.yml) builds x86_64, AArch64, i686 and ARMv7 Linux binaries. Pushing a `vX.Y.Z` tag matching `Cargo.toml` automatically creates a GitHub Release and attaches the successful build archives plus SHA-256 sidecars. Running the workflow manually creates downloadable Actions artifacts only. Other/missing architecture assets fall back to a native source build. See [Installation](docs/INSTALL.md) for details.
 
 ## Termux and VNC
 
@@ -52,6 +52,7 @@ Start LDE from an X11 display manager by selecting the “LDE (Lemon)” session
 - [Feature status and roadmap](docs/FEATURES.md)
 - [Architecture and development notes](docs/architecture.md)
 - [Security notes](docs/SECURITY.md)
+- [Release process](docs/RELEASING.md)
 
 Wiki-ready pages are included under [`wiki/`](wiki/Home.md). GitHub requires the first Wiki page to be created in its web UI before a repository can push Wiki content; once seeded, run `scripts/publish-wiki.sh` to publish/update the included pages. The main installation and troubleshooting docs are available immediately under [`docs/`](docs/INSTALL.md).
 
