@@ -6,17 +6,19 @@ LDE is an early, useful X11 shell prototype, not a finished general-purpose desk
 
 - Rust executable with no third-party Rust crate dependencies.
 - X11 root-window management and simple floating placement for newly mapped windows.
-- Top panel with quick-launch actions and clock text.
-- External terminal, file manager, browser and launcher integration.
+- Top or bottom panel with clock, quick-launch actions and clickable workspace selectors.
+- Floating windows, Alt+left-drag move, Alt+right-drag resize, and a master/stack tile layout toggle.
 - Super-key shortcuts, close/exit actions and nine in-memory workspaces.
+- Lightweight text configuration for app commands, panel colors/position and default layout; Super+I opens settings in an installed editor.
+- Optional wallpaper, desktop, notification and power helper autostart integrations; these remain separate programs.
 - Source installer, X session entry, Linux documentation and Termux/VNC guide.
 
 ## Not available yet
 
-- Wayland compositor, window decorations/title bar, tiling layouts, drag/resize, clipboard integration.
-- Integrated settings, wallpaper/desktop icons, notifications, sound, network, battery/power, display and Bluetooth controls.
-- Accessibility settings, screen reader integration, localization, session lock/logout UI, polkit integration.
-- Robust EWMH/ICCCM compliance, multi-monitor and hotplug support, persistent workspaces/configuration.
+- Wayland compositor, titlebar/window buttons, compositor effects, clipboard integration and built-in wallpaper/desktop icons.
+- Visual control-center, integrated notifications, sound/network/battery/display/Bluetooth controls, session lock/logout UI and polkit integration.
+- Accessibility control-center, screen-reader configuration, localization and assistive-input settings.
+- Robust EWMH/ICCCM compliance, multi-monitor/hotplug support and persistent named workspaces. Wallpaper, notification, power and desktop helpers can be configured as separate optional apps.
 - Tested builds for every CPU architecture/device or prebuilt release artifacts.
 
 ## Roadmap (aspirational)

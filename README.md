@@ -1,15 +1,16 @@
 # LDE — Lemon Desktop Environment
 
-LDE is a deliberately small **Rust/X11 desktop shell and window manager**. The first public milestone focuses on a compact, dependency-free Rust runtime, a usable panel, basic window management, keyboard shortcuts and a straightforward installer.
+LDE is a deliberately small **Rust/X11 desktop shell and window manager**. The core remains dependency-light and delegates optional desktop services to separately installed programs.
 
-> **Status: early preview (0.1.1), not a complete feature-parity desktop environment.** LDE currently targets X11 only. It does not yet provide a settings app, compositor, notifications, power management, accessibility suite, or Wayland support. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
+> **Early preview, not a complete XFCE replacement.** LDE targets X11 only. It has no Wayland compositor, titlebar buttons, visual control center, or built-in notification/power/accessibility services. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
 
 ## What works today
 
-- Lightweight floating X11 window manager with a top panel and app launch buttons.
-- Super+Enter terminal, Super+D application menu, Super+Q close focused client, Super+Shift+Q quit LDE.
-- Nine basic workspaces: Super+1 through Super+9.
-- Launches installed terminal/file manager/browser/menu programs by trying common names; see [launch behavior](docs/CONFIGURATION.md).
+- Floating windows with Alt+left-drag to move, Alt+right-drag to resize, and an optional master/stack tile layout (`Super+T`).
+- Configurable top/bottom panel, app launch buttons and nine clickable/keyboard-selectable workspaces.
+- `Super+Enter` terminal, `Super+D` app menu, `Super+I` config editor, `Super+Q` close focused client, `Super+Shift+Q` quit LDE.
+- Text settings for app commands, colors, panel position/layout, wallpaper and optional autostart helpers.
+- Launches installed terminal/file manager/browser/menu programs by trying common names; see [configuration](docs/CONFIGURATION.md).
 - Rust runtime has no third-party Rust crate dependencies. It links to the system Xlib (`libX11`).
 - Installer creates a display-manager session entry on conventional Linux systems.
 
