@@ -4,4 +4,4 @@ version = 3
 
 [[package]]
 name = "lemon-desktop"
-version = "0.1.0"
+version = "0.1.1"

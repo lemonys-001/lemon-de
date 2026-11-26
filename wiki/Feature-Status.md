@@ -1,6 +1,6 @@
 # Feature status
 
-## Available in 0.1.0
+## Available in 0.1.1
 
 - Single-process Rust X11 shell with system Xlib and no third-party Rust crates.
 - Simple floating placement, top panel, clock text and app launch buttons.

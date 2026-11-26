@@ -2,7 +2,7 @@
 
 LDE is a deliberately small **Rust/X11 desktop shell and window manager**. The first public milestone focuses on a compact, dependency-free Rust runtime, a usable panel, basic window management, keyboard shortcuts and a straightforward installer.
 
-> **Status: early preview (0.1.0), not a complete feature-parity desktop environment.** LDE currently targets X11 only. It does not yet provide a settings app, compositor, notifications, power management, accessibility suite, or Wayland support. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
+> **Status: early preview (0.1.1), not a complete feature-parity desktop environment.** LDE currently targets X11 only. It does not yet provide a settings app, compositor, notifications, power management, accessibility suite, or Wayland support. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
 
 ## What works today
 
