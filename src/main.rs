@@ -411,13 +411,37 @@ unsafe fn drag_window(display: *mut Display, root: Window, panel: Window, window
     XRaiseWindow(display, panel);
 }
 
+fn should_run_terminal_menu(args: &[String], stdin_is_tty: bool, display_is_set: bool) -> bool {
+    args.iter().any(|arg| arg == "--menu")
+        || (args.len() == 1 && stdin_is_tty && !display_is_set)
+}
+
+#[cfg(test)]
+mod startup_tests {
+    use super::should_run_terminal_menu;
+
+    #[test]
+    fn graphical_display_takes_precedence_over_terminal_menu() {
+        let args = vec!["lemon".to_owned()];
+        assert!(!should_run_terminal_menu(&args, true, true));
+        assert!(should_run_terminal_menu(&args, true, false));
+        assert!(!should_run_terminal_menu(&args, false, false));
+    }
+
+    #[test]
+    fn explicit_menu_flag_works_even_with_a_display() {
+        let args = vec!["lemon".to_owned(), "--menu".to_owned()];
+        assert!(should_run_terminal_menu(&args, false, true));
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--version" || a == "-V") {
         println!("LDE lemon {}", env!("CARGO_PKG_VERSION")); return;
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!("LDE — lightweight X11 desktop shell and tools\n\nUsage: lemon [--menu|--no-menu|--settings|--install|--launcher|--files [PATH]]\n       lemon --help | --version | --config-path | --init-config\n\nWith no arguments in a terminal, Lemon opens its interactive menu. In a graphical session, it starts the X11 desktop.\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings, Super+T layout, Super+Q close, Super+Shift+Q quit, Super+1..9 workspaces."); return;
+        println!("LDE — lightweight X11 desktop shell and tools\n\nUsage: lemon [--menu|--no-menu|--settings|--install|--launcher|--files [PATH]]\n       lemon --help | --version | --config-path | --init-config\n\nWith no arguments in a terminal without DISPLAY, Lemon opens its interactive menu. If DISPLAY is set (including Termux/VNC), it starts the X11 desktop; use --menu to force the terminal menu.\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings, Super+T layout, Super+Q close, Super+Shift+Q quit, Super+1..9 workspaces."); return;
     }
     if args.iter().any(|a| a == "--config-path") { println!("{}", Config::path().display()); return; }
     if args.iter().any(|a| a == "--init-config") {
@@ -435,7 +459,8 @@ fn main() {
     if args.iter().any(|a| a == "--install") { terminal_ui::install_components(); return; }
     if args.iter().any(|a| a == "--launcher") { terminal_ui::launcher(); return; }
     if args.iter().any(|a| a == "--files") { terminal_ui::file_browser(); return; }
-    if args.iter().any(|a| a == "--menu") || (args.len() == 1 && terminal_ui::stdin_is_terminal()) {
+    let display_is_set = std::env::var_os("DISPLAY").is_some();
+    if should_run_terminal_menu(&args, terminal_ui::stdin_is_terminal(), display_is_set) {
         terminal_ui::run_menu(); return;
     }
     start_desktop();

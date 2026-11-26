@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 — 2026-11-26
+
+- Fix startup routing so a set `DISPLAY` starts the X11 desktop even when stdin is a terminal, preventing the interactive menu from hijacking Termux/VNC launches.
+- Keep `lemon --menu` as an explicit way to open the terminal menu; add regression tests for startup selection.
+
 ## 0.3.0 — 2026-11-26
 
 - Add an interactive terminal menu to `lemon` for starting LDE, installing optional desktop packages, changing settings, and opening built-in tools.

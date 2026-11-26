@@ -1,6 +1,6 @@
 # Lemon components and terminal tools
 
-The `lemon` executable now includes an interactive terminal menu and several small Rust applets. Run `lemon` from a terminal to open the menu. In an X11 session (with no terminal attached), running `lemon` starts the window manager as before. Use `lemon --no-menu` to explicitly start the desktop from a terminal.
+The `lemon` executable includes an interactive terminal menu and several small Rust applets. Run `lemon` from a terminal without `DISPLAY` to open the menu. If `DISPLAY` is set—including when launched from a Termux/VNC terminal—`lemon` starts the X11 desktop. Use `lemon --menu` to force the menu or `lemon --no-menu` to explicitly start the desktop.
 
 ## Built into the Rust binary
 
