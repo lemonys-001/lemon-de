@@ -1,6 +1,7 @@
 //! Small X11 window manager/shell. Core has no third-party Rust dependencies;
 //! optional desktop services are separate user processes configured in ~/.config/lde/config.
 mod config;
+mod terminal_ui;
 
 use config::Config;
 use std::collections::{HashMap, HashSet};
@@ -416,15 +417,31 @@ fn main() {
         println!("LDE lemon {}", env!("CARGO_PKG_VERSION")); return;
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!("LDE — lightweight X11 desktop shell\n\nUsage: lemon [--help] [--version] [--settings] [--config-path]\n\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings,\nSuper+T toggle tiled/floating, Super+Q close, Super+Shift+Q quit,\nSuper+1..9 switch workspaces, Alt+left-drag move, Alt+right-drag resize."); return;
+        println!("LDE — lightweight X11 desktop shell and tools\n\nUsage: lemon [--menu|--no-menu|--settings|--install|--launcher|--files [PATH]]\n       lemon --help | --version | --config-path | --init-config\n\nWith no arguments in a terminal, Lemon opens its interactive menu. In a graphical session, it starts the X11 desktop.\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings, Super+T layout, Super+Q close, Super+Shift+Q quit, Super+1..9 workspaces."); return;
     }
     if args.iter().any(|a| a == "--config-path") { println!("{}", Config::path().display()); return; }
     if args.iter().any(|a| a == "--init-config") {
         match Config::ensure_file() { Ok(path) => println!("LDE config ready: {}", path.display()), Err(e) => { eprintln!("LDE: {e}"); std::process::exit(1); } }
         return;
     }
-    if args.iter().any(|a| a == "--settings") { open_settings(); return; }
+    if args.iter().any(|a| a == "--settings") {
+        if terminal_ui::stdin_is_terminal() || std::env::var_os("DISPLAY").is_none() {
+            terminal_ui::settings();
+        } else {
+            open_settings();
+        }
+        return;
+    }
+    if args.iter().any(|a| a == "--install") { terminal_ui::install_components(); return; }
+    if args.iter().any(|a| a == "--launcher") { terminal_ui::launcher(); return; }
+    if args.iter().any(|a| a == "--files") { terminal_ui::file_browser(); return; }
+    if args.iter().any(|a| a == "--menu") || (args.len() == 1 && terminal_ui::stdin_is_terminal()) {
+        terminal_ui::run_menu(); return;
+    }
+    start_desktop();
+}
 
+pub(crate) fn start_desktop() {
     let config = Config::load();
     let panel_top = config.panel_position != "bottom";
     let mut tiled = [config.layout == "tiled"; 9];
