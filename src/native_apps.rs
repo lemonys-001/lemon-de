@@ -41,7 +41,7 @@ impl Ui {
     fn close(self){unsafe{XFreeGC(self.d,self.g);XDestroyWindow(self.d,self.w);XCloseDisplay(self.d);}}
 }
 fn shell(ui:&Ui,title:&str,subtitle:&str,status:&str){ui.clear();ui.fill(0,0,W,78,PANEL);ui.fill(0,0,5,H,ACCENT);ui.text(24,34,title,TEXT);ui.text(24,58,subtitle,MUTED);ui.text(W as c_int-86,34,"[ close ]",ACCENT);ui.fill(16,510,W-32,1,PANEL);ui.text(24,540,status,MUTED);}
-fn key(e:&mut XKeyEvent)->(c_ulong,String){let mut buf=[0i8;16];let mut sym=0;let n=unsafe{XLookupString(e,buf.as_mut_ptr(),buf.len() as c_int,&mut sym,ptr::null_mut())};(sym,buf[..n.max(0) as usize].iter().map(|x|*x as u8 as char).collect())}
+fn key(e:&mut XKeyEvent)->(c_ulong,String){let mut buf=[0 as c_char;16];let mut sym=0;let n=unsafe{XLookupString(e,buf.as_mut_ptr(),buf.len() as c_int,&mut sym,ptr::null_mut())};(sym,buf[..n.max(0) as usize].iter().map(|x|*x as u8 as char).collect())}
 fn close_click(b:&XButtonEvent)->bool{b.x>=W as c_int-92&&b.y<76}
 fn launch(name:&str)->Result<(),String>{Command::new(name).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map(|_|()).map_err(|e|format!("Cannot launch {name}: {e}"))}
 fn executables()->Vec<String>{let mut set=BTreeSet::new();for dir in env::var_os("PATH").unwrap_or_default().to_string_lossy().split(':'){if let Ok(es)=fs::read_dir(dir){for e in es.flatten(){if let Ok(m)=e.metadata(){#[cfg(unix)] let ok={use std::os::unix::fs::PermissionsExt;m.is_file()&&m.permissions().mode()&0o111!=0};#[cfg(not(unix))]let ok=m.is_file();if ok{if let Some(n)=e.file_name().to_str(){set.insert(n.to_owned());}}}}}}set.into_iter().collect()}
