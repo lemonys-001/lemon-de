@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-11-26
+
+- Add native Xlib GUI versions of Lemon Launcher, Lemon Files, Lemon Settings, and a basic calculator, while retaining terminal interfaces.
+- Open built-in apps from the panel and keyboard shortcuts; keep windows as normal clients with a small memory footprint and no new Rust dependencies.
+- Add minimize/restore and Alt+Tab focus cycling; keep Alt+drag move and resize.
+- Add Xvfb GUI smoke tests and calculator expression tests.
+
 ## 0.3.1 — 2026-11-26
 
 - Fix startup routing so a set `DISPLAY` starts the X11 desktop even when stdin is a terminal, preventing the interactive menu from hijacking Termux/VNC launches.

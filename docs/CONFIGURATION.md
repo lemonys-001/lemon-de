@@ -32,8 +32,11 @@ Commands from this file are run through the user's shell as that same user. Only
 ## Window layout and mouse
 
 - **Super+T** toggles the current workspace between floating and a simple master/stack tiled layout. The workspace's prior floating geometry is restored when switching back.
-- **Alt+left-drag** moves a window.
-- **Alt+right-drag** resizes a window, with a minimum size clamp.
+- **Alt+left-drag** moves a window; **Alt+right-drag** resizes it, with a minimum size clamp.
+- **Super+M** minimizes the focused window; **Super+Shift+M** restores the most recently minimized window.
+- **Alt+Tab** cycles focus through visible windows.
+- **Super+D** opens Lemon Launcher, **Super+I** Lemon Settings, and **Super+C** Lemon Calculator.
+- The panel has Terminal, Files, Web, Calculator and Apps actions; these start the configured programs or lightweight built-in apps.
 - **Super+1 … Super+9** switches workspaces; the workspace numbers are also clickable in the panel on wider screens.
 
 LDE still has no titlebar/window-button decorations, built-in visual control-center, compositor, or integrated desktop-icon/notification/power/accessibility services. External helpers can be autostarted without adding their dependencies to LDE's small core.

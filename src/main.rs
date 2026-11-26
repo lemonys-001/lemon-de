@@ -1,6 +1,7 @@
 //! Small X11 window manager/shell. Core has no third-party Rust dependencies;
 //! optional desktop services are separate user processes configured in ~/.config/lde/config.
 mod config;
+mod native_apps;
 mod terminal_ui;
 
 use config::Config;
@@ -152,6 +153,9 @@ const XK_D: c_ulong = 0x64;
 const XK_I: c_ulong = 0x69;
 const XK_Q: c_ulong = 0x71;
 const XK_T: c_ulong = 0x74;
+const XK_M: c_ulong = 0x6d;
+const XK_C: c_ulong = 0x63;
+const XK_TAB: c_ulong = 0xff09;
 const XK_1: c_ulong = 0x31;
 const XK_2: c_ulong = 0x32;
 const XK_3: c_ulong = 0x33;
@@ -191,10 +195,18 @@ fn launch_terminal(config: &Config) {
         eprintln!("LDE: no terminal found. Install xterm, foot, kitty, or set terminal in the LDE config.");
     }
 }
+fn spawn_builtin(option: &str) -> bool {
+    std::env::current_exe().ok().is_some_and(|exe|
+        Command::new(exe).arg(option).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().is_ok())
+}
 fn launch_files(config: &Config) {
-    if (!config.file_manager.is_empty() && shell_command(&config.file_manager))
-        || spawn_candidates(&["thunar", "pcmanfm", "nemo", "dolphin"]) { return; }
-    eprintln!("LDE: no file manager found; install one or set file_manager in the LDE config.");
+    if !config.file_manager.is_empty() && shell_command(&config.file_manager) { return; }
+    if std::env::var_os("DISPLAY").is_some() && spawn_builtin("--files") { return; }
+    if spawn_candidates(&["thunar", "pcmanfm", "nemo", "dolphin"]) { return; }
+    eprintln!("LDE: no file manager found; use the built-in Lemon Files app or install one.");
+}
+fn launch_calculator() {
+    if !spawn_builtin("--calculator") { eprintln!("LDE: could not launch Lemon Calculator."); }
 }
 fn launch_web(config: &Config) {
     if (!config.browser.is_empty() && shell_command(&config.browser))
@@ -202,8 +214,9 @@ fn launch_web(config: &Config) {
     eprintln!("LDE: no browser found; install one or set browser in the LDE config.");
 }
 fn launch_menu(config: &Config) {
-    if (!config.launcher.is_empty() && shell_command(&config.launcher))
-        || Command::new("rofi").args(["-show", "drun"]).stdin(Stdio::null()).spawn().is_ok()
+    if !config.launcher.is_empty() && shell_command(&config.launcher) { return; }
+    if std::env::var_os("DISPLAY").is_some() && spawn_builtin("--launcher") { return; }
+    if Command::new("rofi").args(["-show", "drun"]).stdin(Stdio::null()).spawn().is_ok()
         || spawn_candidates(&["dmenu_run", "bemenu-run"]) { return; }
     for term in ["foot", "kitty", "alacritty", "xterm", "urxvt"] {
         if Command::new(term).args(["-e", "sh", "-lc", "printf 'LDE launcher\\n\\nInstall rofi or dmenu for an application menu.\\nHotkeys: Super+Enter terminal, Super+1..9 workspaces.\\n'; exec \"${SHELL:-/bin/sh}\""]).spawn().is_ok() { return; }
@@ -212,6 +225,7 @@ fn launch_menu(config: &Config) {
 }
 fn shell_quote(value: &str) -> String { format!("'{}'", value.replace('\'', "'\\''")) }
 fn open_settings() {
+    if std::env::var_os("DISPLAY").is_some() && spawn_builtin("--settings") { return; }
     let path = match Config::ensure_file() {
         Ok(path) => path,
         Err(error) => { eprintln!("LDE: {error}"); return; }
@@ -255,8 +269,8 @@ unsafe fn draw_panel(display: *mut Display, panel: Window, gc: GC, width: c_int,
     let title = cstring("LEMON");
     XDrawString(display, panel, gc, 16, 22, title.as_ptr(), 5);
     XSetForeground(display, gc, COLOR_DIM);
-    let buttons = cstring("  Terminal    Files    Web    Apps");
-    XDrawString(display, panel, gc, 98, 22, buttons.as_ptr(), 34);
+    let buttons = cstring(" Terminal  Files  Web  Calc  Apps");
+    XDrawString(display, panel, gc, 98, 22, buttons.as_ptr(), 33);
 
     if width >= 700 {
         for i in 0..9 {
@@ -441,25 +455,31 @@ fn main() {
         println!("LDE lemon {}", env!("CARGO_PKG_VERSION")); return;
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!("LDE — lightweight X11 desktop shell and tools\n\nUsage: lemon [--menu|--no-menu|--settings|--install|--launcher|--files [PATH]]\n       lemon --help | --version | --config-path | --init-config\n\nWith no arguments in a terminal without DISPLAY, Lemon opens its interactive menu. If DISPLAY is set (including Termux/VNC), it starts the X11 desktop; use --menu to force the terminal menu.\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings, Super+T layout, Super+Q close, Super+Shift+Q quit, Super+1..9 workspaces."); return;
+        println!("LDE — lightweight X11 desktop shell and tools\n\nUsage: lemon [--menu|--no-menu|--settings|--install|--launcher|--files [PATH]|--calculator]\n       lemon --help | --version | --config-path | --init-config\n\nWith no arguments in a terminal without DISPLAY, Lemon opens its interactive menu. If DISPLAY is set (including Termux/VNC), it starts the X11 desktop; use --menu to force the terminal menu.\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings, Super+C calculator, Super+M minimize, Super+Shift+M restore, Alt+Tab cycle, Super+T layout, Super+Q close, Super+Shift+Q quit, Super+1..9 workspaces. Alt+left/right-drag moves/resizes."); return;
     }
     if args.iter().any(|a| a == "--config-path") { println!("{}", Config::path().display()); return; }
     if args.iter().any(|a| a == "--init-config") {
         match Config::ensure_file() { Ok(path) => println!("LDE config ready: {}", path.display()), Err(e) => { eprintln!("LDE: {e}"); std::process::exit(1); } }
         return;
     }
+    let display_is_set = std::env::var_os("DISPLAY").is_some();
     if args.iter().any(|a| a == "--settings") {
-        if terminal_ui::stdin_is_terminal() || std::env::var_os("DISPLAY").is_none() {
-            terminal_ui::settings();
-        } else {
-            open_settings();
-        }
+        if !display_is_set || !native_apps::settings() { terminal_ui::settings(); }
         return;
     }
     if args.iter().any(|a| a == "--install") { terminal_ui::install_components(); return; }
-    if args.iter().any(|a| a == "--launcher") { terminal_ui::launcher(); return; }
-    if args.iter().any(|a| a == "--files") { terminal_ui::file_browser(); return; }
-    let display_is_set = std::env::var_os("DISPLAY").is_some();
+    if args.iter().any(|a| a == "--launcher") {
+        if !display_is_set || !native_apps::launcher() { terminal_ui::launcher(); }
+        return;
+    }
+    if args.iter().any(|a| a == "--files") {
+        if !display_is_set || !native_apps::file_browser() { terminal_ui::file_browser(); }
+        return;
+    }
+    if args.iter().any(|a| a == "--calculator") {
+        if !display_is_set || !native_apps::calculator() { terminal_ui::calculator(); }
+        return;
+    }
     if should_run_terminal_menu(&args, terminal_ui::stdin_is_terminal(), display_is_set) {
         terminal_ui::run_menu(); return;
     }
@@ -484,10 +504,12 @@ pub(crate) fn start_desktop() {
         XSelectInput(display, root, SUBSTRUCTURE_REDIRECT_MASK | SUBSTRUCTURE_NOTIFY_MASK | KEY_PRESS_MASK);
         if config.wallpaper.is_empty() { XSetWindowBackground(display, root, config.background_color as c_ulong); }
         XClearWindow(display, root);
-        for key in [XK_RETURN, XK_D, XK_I, XK_Q, XK_T, XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9] {
+        for key in [XK_RETURN, XK_D, XK_I, XK_Q, XK_T, XK_M, XK_C, XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9] {
             grab(display, root, key, MOD4_MASK);
         }
         grab(display, root, XK_Q, MOD4_MASK | SHIFT_MASK);
+        grab(display, root, XK_M, MOD4_MASK | SHIFT_MASK);
+        grab(display, root, XK_TAB, MOD1_MASK);
 
         let panel_y = if panel_top { 0 } else { height - PANEL_H };
         let panel = XCreateSimpleWindow(display, root, 0, panel_y, width as c_uint, PANEL_H as c_uint, 0,
@@ -508,6 +530,7 @@ pub(crate) fn start_desktop() {
         let mut current_workspace: usize = 0;
         let mut workspace_of: HashMap<Window, usize> = HashMap::new();
         let mut saved_geometry: HashMap<Window, Geometry> = HashMap::new();
+        let mut minimized: Vec<Window> = Vec::new();
         loop {
             if XPending(display) == 0 {
                 let mut fd = PollFd { fd: XConnectionNumber(display), events: 1, revents: 0 };
@@ -521,6 +544,18 @@ pub(crate) fn start_desktop() {
                 MAP_REQUEST => {
                     let e = event.map_request;
                     if e.window == panel { continue; }
+                    if windows.contains(&e.window) || minimized.contains(&e.window) {
+                        minimized.retain(|window| *window != e.window);
+                        windows.insert(e.window);
+                        workspace_of.insert(e.window, current_workspace);
+                        XMapWindow(display, e.window);
+                        XRaiseWindow(display, e.window);
+                        focused = e.window;
+                        XSetInputFocus(display, focused, 1, 0);
+                        if tiled[current_workspace] { arrange_tiled(display, &windows, &workspace_of, current_workspace, width, height, panel_top); }
+                        XRaiseWindow(display, panel);
+                        continue;
+                    }
                     let slot = next_slot % 7;
                     next_slot += 1;
                     let margin = 24 + (slot as c_int * 28);
@@ -555,14 +590,62 @@ pub(crate) fn start_desktop() {
                 }
                 KEY_PRESS => {
                     let e = event.key;
+                    if e.state & MOD1_MASK != 0 && e.keycode == keycode(display, XK_TAB) {
+                        let mut visible: Vec<Window> = windows.iter().copied()
+                            .filter(|window| workspace_of.get(window).copied() == Some(current_workspace)).collect();
+                        visible.sort_unstable();
+                        if !visible.is_empty() {
+                            let next = visible.iter().position(|window| *window == focused)
+                                .map(|index| (index + 1) % visible.len()).unwrap_or(0);
+                            if focused != 0 { XSetWindowBorder(display, focused, COLOR_UNFOCUSED); }
+                            focused = visible[next];
+                            XRaiseWindow(display, focused);
+                            XSetWindowBorder(display, focused, config.accent_color as c_ulong);
+                            XSetInputFocus(display, focused, 1, 0);
+                            XRaiseWindow(display, panel);
+                        }
+                        continue;
+                    }
                     if e.state & MOD4_MASK == 0 { continue; }
                     if e.keycode == keycode(display, XK_RETURN) { launch_terminal(&config); }
                     else if e.keycode == keycode(display, XK_D) { launch_menu(&config); }
                     else if e.keycode == keycode(display, XK_I) { open_settings(); }
+                    else if e.keycode == keycode(display, XK_C) { launch_calculator(); }
                     else if e.keycode == keycode(display, XK_Q) && e.state & SHIFT_MASK != 0 {
                         XCloseDisplay(display); return;
                     } else if e.keycode == keycode(display, XK_Q) && focused != 0 {
                         XKillClient(display, focused);
+                    } else if e.keycode == keycode(display, XK_M) && e.state & SHIFT_MASK != 0 {
+                        while let Some(window) = minimized.pop() {
+                            if workspace_of.contains_key(&window) {
+                                windows.insert(window);
+                                workspace_of.insert(window, current_workspace);
+                                XMapWindow(display, window);
+                                XRaiseWindow(display, window);
+                                focused = window;
+                                XSetWindowBorder(display, focused, config.accent_color as c_ulong);
+                                XSetInputFocus(display, focused, 1, 0);
+                                if tiled[current_workspace] { arrange_tiled(display, &windows, &workspace_of, current_workspace, width, height, panel_top); }
+                                XRaiseWindow(display, panel);
+                                break;
+                            }
+                        }
+                    } else if e.keycode == keycode(display, XK_M) && focused != 0 {
+                        let hidden = focused;
+                        XUnmapWindow(display, hidden);
+                        windows.remove(&hidden);
+                        minimized.retain(|window| *window != hidden);
+                        minimized.push(hidden);
+                        if let Some(next) = windows.iter().copied().find(|window| workspace_of.get(window).copied() == Some(current_workspace)) {
+                            focused = next;
+                            XRaiseWindow(display, focused);
+                            XSetWindowBorder(display, focused, config.accent_color as c_ulong);
+                            XSetInputFocus(display, focused, 1, 0);
+                        } else {
+                            focused = 0;
+                            XSetInputFocus(display, root, 1, 0);
+                        }
+                        if tiled[current_workspace] { arrange_tiled(display, &windows, &workspace_of, current_workspace, width, height, panel_top); }
                     } else if e.keycode == keycode(display, XK_T) {
                         toggle_layout(display, &windows, &workspace_of, current_workspace, &mut tiled,
                             &mut saved_geometry, width, height, panel_top);
@@ -585,10 +668,11 @@ pub(crate) fn start_desktop() {
                                 &mut current_workspace, target, &tiled, width, height, panel_top, &mut focused);
                         } else {
                             match e.x {
-                                70..=174 => launch_terminal(&config),
-                                175..=250 => launch_files(&config),
-                                251..=310 => launch_web(&config),
-                                311..=420 => launch_menu(&config),
+                                70..=139 => launch_terminal(&config),
+                                140..=209 => launch_files(&config),
+                                210..=269 => launch_web(&config),
+                                270..=329 => launch_calculator(),
+                                330..=420 => launch_menu(&config),
                                 _ => {}
                             }
                         }
@@ -616,7 +700,8 @@ pub(crate) fn start_desktop() {
                 }
                 DESTROY_NOTIFY => {
                     let win = event.destroy.window;
-                    windows.remove(&win); workspace_of.remove(&win); saved_geometry.remove(&win);
+                    windows.remove(&win); minimized.retain(|window| *window != win);
+                    workspace_of.remove(&win); saved_geometry.remove(&win);
                     if focused == win {
                         if let Some(next) = windows.iter().find(|&&w| workspace_of.get(&w).copied() == Some(current_workspace)) {
                             focused = *next; XSetInputFocus(display, focused, 1, 0);
