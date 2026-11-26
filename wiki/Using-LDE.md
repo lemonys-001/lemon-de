@@ -18,4 +18,4 @@ Super is commonly the Windows key. The X server must map it to Mod4. Workspaces 
 
 The panel quick-launch buttons try installed programs: terminals (`foot`, `kitty`, `alacritty`, `wezterm`, `xterm`, `uxterm`, `urxvt`), file managers (`thunar`, `pcmanfm`, `nemo`, `dolphin`), browsers (`firefox`, `chromium`, `chromium-browser`, `google-chrome`) and launchers (`rofi`, `dmenu_run`, `bemenu-run`). `$TERMINAL` overrides configured terminal discovery.
 
-See [Configuration](Installation) for user settings. Optional desktop icons, notifications and power controls can come from separate applications configured as autostart helpers; they are not built into LDE.
+See [Configuration](Configuration) for user settings. Optional desktop icons, notifications and power controls can come from separate applications configured as autostart helpers; they are not built into LDE.
