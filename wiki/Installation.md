@@ -20,7 +20,7 @@ Review the script and then run:
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash
 ```
 
-It installs to `$HOME/.local` and never silently escalates privileges. Add `$HOME/.local/bin` to `PATH`. Update with `--update`, or force a local build with `--source`:
+It prefers `/usr/local`, uses `sudo` when needed, and falls back to `$HOME/.local` if `sudo` is unavailable. Re-running checks versions: it prompts before updating an older install, skips the same version, and prevents accidental downgrades. Non-interactive runs proceed without prompts. Use `--yes` for automation, `--force` to reinstall/allow a downgrade, `--version VERSION` to pin a release, and `--build-from-source` to skip binaries:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --update

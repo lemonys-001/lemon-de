@@ -32,7 +32,7 @@ Review the script, then use the one-line installer:
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash
 ```
 
-It installs to `$HOME/.local` by default, picks a matching release asset when available, and otherwise builds the latest release source. Add `$HOME/.local/bin` to `PATH`. To update an existing install, pass `--update`; to force a source build, pass `--source`:
+It prefers `/usr/local`, uses `sudo` when needed, and falls back to `$HOME/.local` when `sudo` is unavailable. It picks a matching release asset when available and otherwise builds the tagged source. Re-running checks the installed version: older versions prompt for update, the same version is left alone, and newer versions are not downgraded implicitly. Non-interactive runs proceed without prompting. Use `--yes` for automation, `--force` to reinstall/allow a downgrade, and `--version VERSION` to pin a version. To force a source build, pass `--build-from-source`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --update
