@@ -13,6 +13,15 @@ LDE is an early, useful X11 shell prototype, not a finished general-purpose desk
 - Optional wallpaper, desktop, notification and power helper autostart integrations; these remain separate programs.
 - Source installer, X session entry, Linux documentation and Termux/VNC guide.
 
+## Added on the current development branch (not yet released or runtime-validated)
+
+- Interactive terminal menu in the primary `lemon` binary, with desktop start, package install, settings, launcher and file-browser actions.
+- Lemon Settings TUI for app defaults, panel placement/colors, layout, wallpaper and autostart commands.
+- Package-manager integration for optional application packages through apt, dnf, pacman, zypper, apk, and Termux `pkg`, including confirmation and default selection after installation.
+- Built-in Rust terminal command launcher and file browser.
+
+These additions have not yet been compiled or exercised in this environment because Cargo/Rust tooling is unavailable here. Their availability is not included in the published 0.2.0 release.
+
 ## Not available yet
 
 - Wayland compositor, titlebar/window buttons, compositor effects, clipboard integration and built-in wallpaper/desktop icons.

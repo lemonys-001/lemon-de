@@ -1,6 +1,6 @@
 # Configure LDE
 
-LDE stays small by keeping settings in one text file and optional desktop services as separate processes. Run `lemon --init-config` to create the default file, `lemon --config-path` to print its location, or press **Super+I** in an LDE session to open it in an installed graphical text editor (then `$EDITOR` in a terminal as a fallback).
+LDE stays small by keeping settings in one text file and optional desktop services as separate processes. Run `lemon --init-config` to create the default file, `lemon --config-path` to print its location, or `lemon --settings` in a terminal to open the interactive Lemon Settings menu. Press **Super+I** in an LDE session to open the file in an installed graphical text editor (then `$EDITOR` in a terminal as a fallback). Running `lemon` with no arguments in a terminal opens the main menu; in a graphical session it starts the desktop.
 
 Default location: `~/.config/lde/config`, or `$XDG_CONFIG_HOME/lde/config` when `XDG_CONFIG_HOME` is set. Changes to app commands, colors, panel position, and default layout apply the next time LDE starts.
 

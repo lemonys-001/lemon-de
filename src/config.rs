@@ -82,6 +82,24 @@ impl Config {
         }
         Ok(path)
     }
+
+    pub fn save(&self) -> Result<PathBuf, String> {
+        let path = Self::path();
+        let parent = path.parent().ok_or_else(|| "Invalid LDE config path".to_string())?;
+        fs::create_dir_all(parent).map_err(|e| format!("Cannot create {}: {e}", parent.display()))?;
+        let clean = |value: &str| value.replace(['\n', '\r'], " ");
+        let mut output = format!(
+            "# LDE settings; commands run through your shell as your user.\nterminal = {}\nlauncher = {}\nfile_manager = {}\nbrowser = {}\nwallpaper = {}\npanel_position = {}\nlayout = {}\npanel_color = 0x{:06x}\naccent_color = 0x{:06x}\nbackground_color = 0x{:06x}\n",
+            clean(&self.terminal), clean(&self.launcher), clean(&self.file_manager),
+            clean(&self.browser), clean(&self.wallpaper), clean(&self.panel_position),
+            clean(&self.layout), self.panel_color, self.accent_color, self.background_color);
+        for service in &self.autostart {
+            let service = clean(service);
+            if !service.trim().is_empty() { output.push_str(&format!("autostart = {service}\n")); }
+        }
+        fs::write(&path, output).map_err(|e| format!("Cannot write {}: {e}", path.display()))?;
+        Ok(path)
+    }
 }
 
 fn parse_color(value: &str) -> Option<u64> {

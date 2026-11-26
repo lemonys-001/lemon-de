@@ -9,8 +9,10 @@ LDE is a deliberately small **Rust/X11 desktop shell and window manager**. The c
 - Floating windows with Alt+left-drag to move, Alt+right-drag to resize, and an optional master/stack tile layout (`Super+T`).
 - Configurable top/bottom panel, app launch buttons and nine clickable/keyboard-selectable workspaces.
 - `Super+Enter` terminal, `Super+D` app menu, `Super+I` config editor, `Super+Q` close focused client, `Super+Shift+Q` quit LDE.
-- Text settings for app commands, colors, panel position/layout, wallpaper and optional autostart helpers.
-- Launches installed terminal/file manager/browser/menu programs by trying common names; see [configuration](docs/CONFIGURATION.md).
+- **Interactive terminal menu:** run `lemon` in a terminal to start the desktop, install optional packages, open Lemon Settings, or use the built-in Rust command launcher and file browser. From a graphical session, `lemon` still starts the desktop directly.
+- **Lemon Settings:** edit app defaults, panel position/colors, layout, wallpaper, and autostart commands without manually editing the config file.
+- The Rust binary includes a terminal app launcher and terminal file browser; larger applications such as a graphical terminal, browser, file manager, and notification daemon are intentionally separate optional packages. The menu can install supported packages via apt, dnf, pacman, zypper, apk, or Termux `pkg`, then optionally set app defaults.
+- Launches installed terminal/file manager/browser/menu programs by trying common names; see [configuration](docs/CONFIGURATION.md) and [components](docs/COMPONENTS.md).
 - Rust runtime has no third-party Rust crate dependencies. It links to the system Xlib (`libX11`).
 - Installer creates a display-manager session entry on conventional Linux systems.
 
@@ -51,6 +53,7 @@ Start LDE from an X11 display manager by selecting the “LDE (Lemon)” session
 - [Termux with VNC](docs/TERMUX.md)
 - [Keyboard shortcuts and application launching](docs/CONFIGURATION.md)
 - [Feature status and roadmap](docs/FEATURES.md)
+- [Built-in apps and package menu](docs/COMPONENTS.md)
 - [Architecture and development notes](docs/architecture.md)
 - [Security notes](docs/SECURITY.md)
 - [Release process](docs/RELEASING.md)
