@@ -68,9 +68,9 @@ cargo build --release --locked
 
 ## CPU architectures
 
-The release-binary workflow builds `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `i686-unknown-linux-gnu` and `armv7-unknown-linux-gnueabihf`. Binary archives are named `lemon-vVERSION-TARGET.tar.gz`, with a `.sha256` sidecar. A manual workflow run creates downloadable Actions artifacts; pushing a `vX.Y.Z` tag that matches the version in `Cargo.toml` creates a GitHub Release and attaches those binaries automatically.
+The release-binary workflow builds `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` and `i686-unknown-linux-gnu`. Binary archives are named `lemon-vVERSION-TARGET.tar.gz`, with a `.sha256` sidecar. A manual workflow run creates downloadable Actions artifacts; pushing a `vX.Y.Z` tag that matches the version in `Cargo.toml` creates a GitHub Release and attaches those binaries automatically.
 
-The installer also recognizes common GNU/Linux targets including RISC-V64, PowerPC64LE and s390x. Until a release asset is built for one of those targets, it falls back to a native source build. This requires Rust, a compatible C toolchain, Xlib development files and an X11-capable OS; it does not mean every CPU/device has been tested.
+The installer also recognizes common GNU/Linux targets including ARMv7, RISC-V64, PowerPC64LE and s390x. Until a release asset is built for one of those targets, it falls back to a native source build. This requires Rust, a compatible C toolchain, Xlib development files and an X11-capable OS; it does not mean every CPU/device has been tested.
 
 ## Troubleshooting
 

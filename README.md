@@ -27,7 +27,7 @@ This installs to `/usr/local` by default, using `sudo` when needed and falling b
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --update
 ```
 
-Use `--prefix /usr/local` for a system-wide install (run with appropriate privileges). The [release workflow](.github/workflows/release-binaries.yml) builds x86_64, AArch64, i686 and ARMv7 Linux binaries. Pushing a `vX.Y.Z` tag matching `Cargo.toml` automatically creates a GitHub Release and attaches the successful build archives plus SHA-256 sidecars. Running the workflow manually creates downloadable Actions artifacts only. Other/missing architecture assets fall back to a native source build. See [Installation](docs/INSTALL.md) for details.
+Use `--prefix /usr/local` for a system-wide install (run with appropriate privileges). The [release workflow](.github/workflows/release-binaries.yml) builds x86_64, AArch64 and i686 Linux binaries. Pushing a `vX.Y.Z` tag matching `Cargo.toml` automatically creates a GitHub Release and attaches the successful build archives plus SHA-256 sidecars. Running the workflow manually creates downloadable Actions artifacts only. Other/missing architecture assets fall back to a native source build. See [Installation](docs/INSTALL.md) for details.
 
 ## Termux and VNC
 
