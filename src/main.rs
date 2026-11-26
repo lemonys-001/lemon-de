@@ -246,9 +246,9 @@ fn start_optional_services(config: &Config) {
 
 unsafe fn draw_panel(display: *mut Display, panel: Window, gc: GC, width: c_int,
                      config: &Config, current: usize, tiled: bool) {
-    XSetForeground(display, gc, config.panel_color);
+    XSetForeground(display, gc, config.panel_color as c_ulong);
     XFillRectangle(display, panel, gc, 0, 0, width.max(1) as c_uint, PANEL_H as c_uint);
-    XSetForeground(display, gc, config.accent_color);
+    XSetForeground(display, gc, config.accent_color as c_ulong);
     XFillRectangle(display, panel, gc, 0, 0, 4, PANEL_H as c_uint);
     XSetForeground(display, gc, COLOR_TEXT);
     let title = cstring("LEMON");
@@ -261,16 +261,16 @@ unsafe fn draw_panel(display: *mut Display, panel: Window, gc: GC, width: c_int,
         for i in 0..9 {
             let x = 425 + i as c_int * 24;
             if i == current {
-                XSetForeground(display, gc, config.accent_color);
+                XSetForeground(display, gc, config.accent_color as c_ulong);
                 XFillRectangle(display, panel, gc, x - 5, 4, 20, 26);
-                XSetForeground(display, gc, config.panel_color);
+                XSetForeground(display, gc, config.panel_color as c_ulong);
             } else { XSetForeground(display, gc, COLOR_DIM); }
             let label = cstring(&(i + 1).to_string());
             XDrawString(display, panel, gc, x, 22, label.as_ptr(), 1);
         }
     }
     let mode = cstring(if tiled { "TILE" } else { "FLOAT" });
-    XSetForeground(display, gc, config.accent_color);
+    XSetForeground(display, gc, config.accent_color as c_ulong);
     XDrawString(display, panel, gc, (width - 150).max(8), 22, mode.as_ptr(), 4 + if tiled { 0 } else { 1 });
     let clock = chrono_like_clock();
     let clock_c = cstring(&clock);
@@ -440,7 +440,7 @@ fn main() {
         let width = XDisplayWidth(display, screen);
         let height = XDisplayHeight(display, screen);
         XSelectInput(display, root, SUBSTRUCTURE_REDIRECT_MASK | SUBSTRUCTURE_NOTIFY_MASK | KEY_PRESS_MASK);
-        if config.wallpaper.is_empty() { XSetWindowBackground(display, root, config.background_color); }
+        if config.wallpaper.is_empty() { XSetWindowBackground(display, root, config.background_color as c_ulong); }
         XClearWindow(display, root);
         for key in [XK_RETURN, XK_D, XK_I, XK_Q, XK_T, XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9] {
             grab(display, root, key, MOD4_MASK);
@@ -449,7 +449,7 @@ fn main() {
 
         let panel_y = if panel_top { 0 } else { height - PANEL_H };
         let panel = XCreateSimpleWindow(display, root, 0, panel_y, width as c_uint, PANEL_H as c_uint, 0,
-            config.panel_color, config.panel_color);
+            config.panel_color as c_ulong, config.panel_color as c_ulong);
         let mut attrs: XSetWindowAttributes = std::mem::zeroed();
         attrs.override_redirect = 1;
         XChangeWindowAttributes(display, panel, CW_OVERRIDE_REDIRECT, &mut attrs);

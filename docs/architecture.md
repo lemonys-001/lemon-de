@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-`lemon` is one Rust process. `src/main.rs` declares the small subset of the Xlib C ABI it uses and links to system `libX11`. There are no external Rust crates. The event loop selects root-window substructure events, maps/configures client windows, sets focus and draws a simple panel. Programs such as terminals and launchers are intentionally launched as separate user processes rather than embedded.
+`lemon` is one Rust process. `src/main.rs` declares the small subset of the Xlib C ABI it uses and links to system `libX11`. There are no external Rust crates. The event loop selects root-window substructure events, maps/configures client windows, sets focus and draws a simple panel. Programs such as terminals, launchers, wallpaper setters, desktop-icon providers and optional notification/power helpers are intentionally launched as separate user processes rather than embedded. The user's simple `~/.config/lde/config` settings are parsed with the standard library; no GUI toolkit or new Rust crates are added.
 
 This is a compact prototype rather than a mature window manager: X11 error handling is intentionally minimal, client protocol coverage is incomplete, placement is simple, and some session behavior depends on the display manager/X server. Do not treat it as a security boundary.
 
