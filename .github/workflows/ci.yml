@@ -31,7 +31,7 @@ jobs:
           status=$?
           cat "$RUNNER_TEMP/cargo-check.log"
           if [[ $status -ne 0 ]]; then
-            diagnostic=$(tail -n 20 "$RUNNER_TEMP/cargo-check.log" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/:/%3A/g; s/,/%2C/g')
+            diagnostic=$(grep -A 6 -B 2 -E 'error\[|error:' "$RUNNER_TEMP/cargo-check.log" | tail -n 20 | sed -E 's/\x1B\[[0-9;]*[mK]//g' | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/:/%3A/g; s/,/%2C/g')
             echo "::error title=Rust check diagnostics::$diagnostic"
             exit "$status"
           fi
