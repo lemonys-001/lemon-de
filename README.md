@@ -2,7 +2,7 @@
 
 LDE is a deliberately small **Rust/X11 desktop shell and window manager**. The core remains dependency-light and delegates optional desktop services to separately installed programs.
 
-> **Early preview (0.2.0), not a complete XFCE replacement.** LDE targets X11 only. It has no Wayland compositor, titlebar buttons, visual control center, or built-in notification/power/accessibility services. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
+> **Early preview (0.3.0), not a complete XFCE replacement.** LDE targets X11 only. It has no Wayland compositor, titlebar buttons, visual control center, or built-in notification/power/accessibility services. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
 
 ## What works today
 
