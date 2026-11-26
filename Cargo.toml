@@ -1,0 +1,19 @@
+[package]
+name = "lemon-desktop"
+version = "0.1.0"
+edition = "2021"
+description = "A tiny, keyboard-friendly X11 desktop shell and window manager"
+license = "MIT"
+repository = "https://github.com/lemonys-001/lemon-de"
+readme = "README.md"
+
+[[bin]]
+name = "lemon"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

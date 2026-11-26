@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            label: x86_64
+          - runner: ubuntu-24.04-arm
+            label: aarch64
+    runs-on: ${{ matrix.runner }}
+    name: Build (${{ matrix.label }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Install X11 development files
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev
+      - name: Check
+        run: cargo check --locked
+      - name: Build release
+        run: cargo build --release --locked
+      - name: Smoke-test CLI
+        run: ./target/release/lemon --help && ./target/release/lemon --version
