@@ -28,10 +28,6 @@ jobs:
             runner: ubuntu-24.04
             multiarch: i386
             linker: i686-linux-gnu-gcc
-          - target: armv7-unknown-linux-gnueabihf
-            runner: ubuntu-24.04
-            multiarch: armhf
-            linker: arm-linux-gnueabihf-gcc
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +46,6 @@ jobs:
               sudo apt-get update
               case "${{ matrix.target }}" in
                 i686-*) sudo apt-get install -y gcc-i686-linux-gnu libx11-dev:i386 ;;
-                armv7-*) sudo apt-get install -y gcc-arm-linux-gnueabihf libx11-dev:armhf ;;
               esac
             fi
           } > "$RUNNER_TEMP/dependencies.log" 2>&1

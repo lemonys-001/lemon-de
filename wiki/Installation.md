@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.s
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash -s -- --source
 ```
 
-Assets are named `lemon-vVERSION-TARGET.tar.gz` with `.sha256` sidecars. The release workflow builds x86_64, AArch64, i686 and ARMv7 Linux binaries. A matching `vX.Y.Z` tag automatically creates a GitHub Release with the artifacts attached; a manual workflow run produces downloadable Actions artifacts. Other/missing assets fall back to a native build where Rust and Xlib support the machine.
+Assets are named `lemon-vVERSION-TARGET.tar.gz` with `.sha256` sidecars. The release workflow builds x86_64, AArch64 and i686 Linux binaries. A matching `vX.Y.Z` tag automatically creates a GitHub Release with the artifacts attached; a manual workflow run produces downloadable Actions artifacts. Other/missing assets fall back to a native build where Rust and Xlib support the machine.
 
 To build a checkout without installing:
 
