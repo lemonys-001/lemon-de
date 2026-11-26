@@ -1,19 +1,23 @@
-# Lemon components and terminal tools
+# Lemon components and built-in apps
 
-The `lemon` executable includes an interactive terminal menu and several small Rust applets. Run `lemon` from a terminal without `DISPLAY` to open the menu. If `DISPLAY` is set—including when launched from a Termux/VNC terminal—`lemon` starts the X11 desktop. Use `lemon --menu` to force the menu or `lemon --no-menu` to explicitly start the desktop.
+`lemon` includes a terminal menu and small Rust applets. Run `lemon` from a terminal without `DISPLAY` to open the menu. If `DISPLAY` is set—including in Termux/VNC—`lemon` starts the X11 desktop. Use `lemon --menu` to force the menu or `lemon --no-menu` to explicitly start the desktop.
 
-## Built into the Rust binary
+## Native X11 and terminal applets
 
-- **Lemon Launcher** (`lemon --launcher`): filters executable commands available on `PATH` and starts the selected command. This is a terminal launcher; it is not a graphical `Super+D` menu.
-- **Lemon Files** (`lemon --files [PATH]`): browses directories, enters folders, and opens files with the configured file-manager command or `xdg-open` when available. This is a lightweight terminal file browser, not a full graphical file manager.
-- **Lemon Settings** (`lemon --settings`, or menu item 3): updates app commands, panel placement and colors, default layout, wallpaper path, and autostart commands in the LDE config. `Super+I` retains the graphical-session editor fallback.
-- **Lemon window manager and panel**: the existing X11 shell remains the primary graphical desktop component.
+When a valid `DISPLAY` is available, these commands open lightweight Xlib windows; without it, they use their terminal interfaces:
 
-These tools use the Rust standard library; the window manager links against system Xlib. They are deliberately small and do not bundle a browser, terminal emulator, graphical file manager, notification daemon, or other large desktop applications. The interactive installer can install optional system packages for these roles; they remain separate programs and packages.
+- **Lemon Launcher** — `lemon --launcher` or **Super+D**. Filters commands on `PATH`, supports keyboard search, and launches the selected command.
+- **Lemon Files** — `lemon --files [PATH]` or the panel's **Files** action. Browse directories, enter folders, and open files using the configured file-manager command or `xdg-open`.
+- **Lemon Settings** — `lemon --settings` or **Super+I**. Edit app defaults, panel placement/colors, layout, wallpaper, and autostart commands; press Ctrl+S to save in the X11 window.
+- **Lemon Calculator** — `lemon --calculator`, **Super+C**, or the panel's **Calc** action. Basic arithmetic, parentheses, keyboard and mouse input.
+
+The applets use system Xlib and the Rust standard library only. They have no toolkit, bundled web engine, animation loop, or persistent background service. A normal LDE session continues to own window management; applets run as ordinary X11 clients so they can be moved/resized with Alt+left/right-drag. Super+M minimizes a client, Super+Shift+M restores the last minimized one, and Alt+Tab cycles visible clients. There are no titlebar buttons yet.
+
+LDE still does not bundle a web browser, graphical terminal emulator, notification daemon, power manager or other large desktop services. Those remain optional separate programs and can be installed from the terminal package menu.
 
 ## Install optional system packages
 
-Choose **Install additional desktop packages** in the menu or run `lemon --install`. The menu detects apt, dnf, pacman, zypper, apk, or Termux `pkg`, shows the package names it will request, and asks for confirmation before using the system package manager. It requests administrator privileges through `sudo` where available on conventional Linux distributions. Termux installs run without `sudo`.
+Choose **Install additional desktop packages** in the terminal menu or run `lemon --install`. The menu detects apt, dnf, pacman, zypper, apk, or Termux `pkg`, shows the package names it will request, and asks for confirmation before using the system package manager. It requests administrator privileges through `sudo` where available on conventional Linux distributions. Termux installs run without `sudo`.
 
 The catalog includes a terminal emulator, file manager, browser, graphical launcher, notification daemon, and wallpaper helper. Package availability and names vary across distributions; review the displayed packages and the package manager's output. On Termux, some X11 packages may require the `x11-repo` repository and an active VNC/X11 session. Installing packages modifies the operating system and is an explicit user action.
 
@@ -21,4 +25,4 @@ After a successful install, Lemon asks whether newly installed terminal, launche
 
 ## Configuration
 
-Settings are stored at `$XDG_CONFIG_HOME/lde/config`, or `~/.config/lde/config` when `XDG_CONFIG_HOME` is unset. Run `lemon --config-path` to print the path. See [CONFIGURATION.md](CONFIGURATION.md) for supported keys and desktop shortcuts.
+Settings are stored at `$XDG_CONFIG_HOME/lde/config`, or `~/.config/lde/config` when `XDG_CONFIG_HOME` is unset. Run `lemon --config-path` to print the path. See [CONFIGURATION.md](CONFIGURATION.md) for supported keys and shortcuts.

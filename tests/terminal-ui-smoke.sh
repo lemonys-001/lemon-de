@@ -17,4 +17,21 @@ path=$(XDG_CONFIG_HOME="$tmp/config" "$binary" --config-path)
 [[ "$path" == "$config" ]]
 printf '0\n' | "$binary" --menu >/dev/null
 printf 'q\n' | "$binary" --files "$tmp" >/dev/null
-printf 'Terminal UI smoke tests passed.\n'
+calculator=$(printf '2+2\nq\n' | env -u DISPLAY "$binary" --calculator)
+grep -q '= 4' <<<"$calculator"
+
+if command -v xvfb-run >/dev/null 2>&1; then
+  gui_smoke() {
+    local status=0
+    timeout 2s xvfb-run -a "$binary" "$@" >/dev/null 2>&1 || status=$?
+    if [[ $status -ne 124 ]]; then
+      printf 'GUI app failed to remain open (%s): exit %s\n' "$*" "$status" >&2
+      return 1
+    fi
+  }
+  gui_smoke --launcher
+  gui_smoke --files "$tmp"
+  gui_smoke --settings
+  gui_smoke --calculator
+fi
+printf 'Terminal and GUI app smoke tests passed.\n'

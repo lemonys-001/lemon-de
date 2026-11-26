@@ -209,7 +209,8 @@ pub fn run_menu() {
         println!(" 3. Lemon Settings");
         println!(" 4. Built-in application launcher");
         println!(" 5. Built-in file browser");
-        println!(" 6. Show configuration path");
+        println!(" 6. Built-in calculator");
+        println!(" 7. Show configuration path");
         println!(" 0. Exit");
         match read_choice("Choose an option: ").as_str() {
             "1" => { crate::start_desktop(); return; }
@@ -217,7 +218,8 @@ pub fn run_menu() {
             "3" => settings(),
             "4" => launcher(),
             "5" => file_browser(),
-            "6" => println!("{}", Config::path().display()),
+            "6" => calculator(),
+            "7" => println!("{}", Config::path().display()),
             "0" => return,
             _ => println!("Choose one of the listed numbers."),
         }
@@ -302,3 +304,15 @@ fn open_file(path: &Path) {
 }
 
 pub fn stdin_is_terminal() -> bool { io::stdin().is_terminal() }
+
+/// Minimal terminal calculator; expression parsing is shared with the native X11 app.
+pub fn calculator() {
+    loop {
+        let expression = read_choice("Lemon Calculator · enter expression or q to quit: ");
+        if expression.eq_ignore_ascii_case("q") { return; }
+        match crate::native_apps::evaluate(&expression) {
+            Ok(value) => println!("= {value}"),
+            Err(error) => println!("Invalid expression: {error}"),
+        }
+    }
+}
