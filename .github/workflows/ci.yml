@@ -24,7 +24,17 @@ jobs:
       - name: Install X11 development files
         run: sudo apt-get update && sudo apt-get install -y libx11-dev xvfb xauth
       - name: Check
-        run: cargo check --locked
+        shell: bash
+        run: |
+          set +e
+          cargo check --locked > "$RUNNER_TEMP/cargo-check.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/cargo-check.log"
+          if [[ $status -ne 0 ]]; then
+            diagnostic=$(tail -n 20 "$RUNNER_TEMP/cargo-check.log" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/:/%3A/g; s/,/%2C/g')
+            echo "::error title=Rust check diagnostics::$diagnostic"
+            exit "$status"
+          fi
       - name: Test
         run: cargo test --locked
       - name: Build release
