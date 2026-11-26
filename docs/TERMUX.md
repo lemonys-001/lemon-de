@@ -34,6 +34,8 @@ This is an experimental community route, not a native Android desktop. LDE speak
    ./target/release/lemon
    ```
 
+   In LDE 0.3.0, if launching from an interactive Termux/proot shell opens the terminal menu instead of the desktop, use `./target/release/lemon --no-menu` as a workaround. LDE 0.3.1 fixes this routing: with `DISPLAY` set, a terminal launch starts the X11 desktop. The explicit `--menu` option still opens the terminal menu.
+
    If you launch via a VNC startup script, make its final session command run `lemon` (or the installed path). A session command may need `exec lemon` so the WM remains attached to the VNC session.
 
 ## Notes and limitations

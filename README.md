@@ -2,14 +2,14 @@
 
 LDE is a deliberately small **Rust/X11 desktop shell and window manager**. The core remains dependency-light and delegates optional desktop services to separately installed programs.
 
-> **Early preview (0.3.0), not a complete XFCE replacement.** LDE targets X11 only. It has no Wayland compositor, titlebar buttons, visual control center, or built-in notification/power/accessibility services. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
+> **Early preview (0.3.1), not a complete XFCE replacement.** LDE targets X11 only. It has no Wayland compositor, titlebar buttons, visual control center, or built-in notification/power/accessibility services. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
 
 ## What works today
 
 - Floating windows with Alt+left-drag to move, Alt+right-drag to resize, and an optional master/stack tile layout (`Super+T`).
 - Configurable top/bottom panel, app launch buttons and nine clickable/keyboard-selectable workspaces.
 - `Super+Enter` terminal, `Super+D` app menu, `Super+I` config editor, `Super+Q` close focused client, `Super+Shift+Q` quit LDE.
-- **Interactive terminal menu:** run `lemon` in a terminal to start the desktop, install optional packages, open Lemon Settings, or use the built-in Rust command launcher and file browser. From a graphical session, `lemon` still starts the desktop directly.
+- **Interactive terminal menu:** run `lemon` in a terminal without `DISPLAY` to open the menu for starting the desktop, installing optional packages, opening Lemon Settings, or using the built-in Rust command launcher and file browser. If `DISPLAY` is set—including Termux/VNC—`lemon` starts the desktop; pass `--menu` to explicitly force the terminal menu.
 - **Lemon Settings:** edit app defaults, panel position/colors, layout, wallpaper, and autostart commands without manually editing the config file.
 - The Rust binary includes a terminal app launcher and terminal file browser; larger applications such as a graphical terminal, browser, file manager, and notification daemon are intentionally separate optional packages. The menu can install supported packages via apt, dnf, pacman, zypper, apk, or Termux `pkg`, then optionally set app defaults.
 - Launches installed terminal/file manager/browser/menu programs by trying common names; see [configuration](docs/CONFIGURATION.md) and [components](docs/COMPONENTS.md).

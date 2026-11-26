@@ -2,7 +2,7 @@
 
 LDE is an early X11 shell prototype, not a finished general-purpose desktop environment. “Fast”, “light” and “all architecture” need repeatable measurements and broad device testing; we do not publish unsupported benchmark or compatibility claims.
 
-## Available in 0.3.0
+## Available in 0.3.1
 
 - Rust executable with no third-party Rust crate dependencies.
 - X11 root-window management and simple floating placement for newly mapped windows.
@@ -15,7 +15,7 @@ LDE is an early X11 shell prototype, not a finished general-purpose desktop envi
 - Built-in Rust terminal command launcher and file browser.
 - Optional wallpaper, desktop, notification and power helpers remain separate programs; source installer, X session entry, Linux documentation and Termux/VNC guide.
 
-The 0.3.0 code is built and smoke-tested on x86_64 and AArch64 by CI. The package-manager workflows are not run against real systems in CI; package availability depends on distribution and repositories.
+The 0.3.1 code is built and smoke-tested on x86_64 and AArch64 by CI. When `DISPLAY` is set, it takes priority over terminal detection so launching from a Termux/VNC terminal starts the X11 desktop. The package-manager workflows are not run against real systems in CI; package availability depends on distribution and repositories.
 
 ## Not available yet
 
