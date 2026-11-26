@@ -6,6 +6,7 @@ LDE is an early window-manager prototype, not a hardened security boundary. It s
 - Do not run two window managers against the same X root window.
 - Use VNC authentication and network protections; the VNC server, not LDE, is responsible for remote access security.
 - Review and trust external programs found on `PATH`; LDE starts them by executable name.
+- Treat `~/.config/lde/config` as executable configuration: configured launch commands and `autostart` entries run through your login shell as your user.
 - The close shortcut uses XKillClient on the focused X11 resource and may terminate an app without saving.
 - A future stable release should add stronger X11 protocol handling, tests, and security review.
 

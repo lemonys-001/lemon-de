@@ -1,28 +1,39 @@
-# Controls and application launching
+# Configure LDE
 
-## Keyboard shortcuts
+LDE stays small by keeping settings in one text file and optional desktop services as separate processes. Run `lemon --init-config` to create the default file, `lemon --config-path` to print its location, or press **Super+I** in an LDE session to open it in an installed graphical text editor (then `$EDITOR` in a terminal as a fallback).
 
-| Shortcut | Action |
-| --- | --- |
-| `Super` + `Enter` | Start a terminal |
-| `Super` + `D` | Start `rofi`, `dmenu_run`, or `bemenu-run` (first available) |
-| `Super` + `Q` | Close the focused client |
-| `Super` + `Shift` + `Q` | Exit LDE |
-| `Super` + `1` … `Super` + `9` | Switch between nine basic workspaces |
+Default location: `~/.config/lde/config`, or `$XDG_CONFIG_HOME/lde/config` when `XDG_CONFIG_HOME` is set. Changes to app commands, colors, panel position, and default layout apply the next time LDE starts.
 
-The Super key is commonly labeled Windows or Command (when mapped by the X server). Workspace state is in-memory and is reset when LDE exits.
+```ini
+# Commands are optional; blank values use built-in executable discovery.
+terminal = foot
+launcher = rofi -show drun
+file_manager = thunar
+browser = firefox
 
-## Panel
+# Use feh or nitrogen if installed; leave blank for the solid background.
+wallpaper = /home/alex/Pictures/wallpaper.jpg
 
-The panel has quick actions for terminal, files, web and apps. It searches common executable names:
+# panel_position supports top or bottom; layout supports floating or tiled.
+panel_position = top
+layout = floating
+panel_color = 0x222534
+accent_color = #ffb84d
+background_color = 0x171923
 
-- **Terminal:** `$TERMINAL`, then `foot`, `kitty`, `alacritty`, `wezterm`, `xterm`, `uxterm`, `urxvt`.
-- **Files:** `thunar`, `pcmanfm`, `nemo`, `dolphin`, `xdg-open`.
-- **Web:** `xdg-open`, then common Firefox/Chromium names.
-- **Apps:** `rofi`, `dmenu_run`, or `bemenu-run`.
+# Optional desktop/session components. One command per setting line.
+autostart = dunst
+autostart = xfce4-power-manager
+autostart = pcmanfm --desktop
+```
 
-For the best compatibility set `TERMINAL` to a terminal executable available in your X session. App launching uses the current user's `PATH`. Install the desired apps with your distribution package manager.
+Commands from this file are run through the user's shell as that same user. Only put commands you trust in the file. Optional programs are not bundled with LDE. `feh` or `nitrogen` can apply wallpaper; `dunst` can provide notifications; `xfce4-power-manager` can provide power-management UI; and `pcmanfm --desktop` can provide icons. Choose compatible components and avoid starting a second panel or window manager.
 
-## Current limits
+## Window layout and mouse
 
-This milestone does not include a settings GUI, persistent preferences, workspace names, drag-to-move/resize, hotplug handling, or an integrated application catalog. The launcher is an external program. Contributions to those areas are welcome; see [FEATURES.md](FEATURES.md).
+- **Super+T** toggles the current workspace between floating and a simple master/stack tiled layout. The workspace's prior floating geometry is restored when switching back.
+- **Alt+left-drag** moves a window.
+- **Alt+right-drag** resizes a window, with a minimum size clamp.
+- **Super+1 … Super+9** switches workspaces; the workspace numbers are also clickable in the panel on wider screens.
+
+LDE still has no titlebar/window-button decorations, built-in visual control-center, compositor, or integrated desktop-icon/notification/power/accessibility services. External helpers can be autostarted without adding their dependencies to LDE's small core.
