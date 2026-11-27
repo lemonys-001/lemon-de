@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add an opt-in, inbuilt event-driven X11 compositor using Composite, Damage, Fixes, and Render extensions. Basic alpha-capable windows are composited to the X server overlay; advanced effects remain intentionally out of scope.
+- Add `lemon --compositor` plus a Control Center toggle (`lemon --compositor-toggle`), and Xvfb smoke coverage for compositor startup.
+
 ## 0.5.0 — 2026-11-26
 
 - Refresh the native app and panel styling with a modern slate/blue palette, rounded action surfaces, clearer headers, and more consistent sizing/placement.

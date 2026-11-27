@@ -11,15 +11,15 @@ LDE is a deliberately small **Rust/X11 desktop shell and window manager**. The c
 - `Super+Enter` terminal, `Super+D` native launcher, `Super+I` Lemon Settings, `Super+O` Control Center, `Super+C` calculator, `Super+Q` graceful close (ICCCM `WM_DELETE_WINDOW` where supported), `Super+Shift+Q` quit, and `Super+M` minimize.
 - **Interactive terminal menu:** run `lemon` in a terminal without `DISPLAY` to open the menu for starting the desktop, installing optional packages, opening Lemon Settings, or using the built-in Rust command launcher and file browser. If `DISPLAY` is set—including Termux/VNC—`lemon` starts the desktop; pass `--menu` to explicitly force the terminal menu. The panel exposes Apps and Settings buttons; Settings can apply a wallpaper through optional `feh` or `nitrogen`.
 - **Lemon Settings:** edit app defaults, panel position/colors, layout, wallpaper, and autostart commands without manually editing the config file.
-- **Control Center (`Super+O`):** discovers optional system tools for sound, network, Bluetooth, displays, appearance, power, notifications, clipboard, accessibility, desktop icons, screen lock, session logout, and optional X11 compositor effects. These are launched only when installed; LDE does not bundle duplicate heavyweight services.
+- **Control Center (`Super+O`):** includes an opt-in lightweight X11 compositor (`lemon --compositor`, or toggle it from Control Center) for basic alpha composition and discovers optional tools for sound, network, Bluetooth, displays, appearance, power, notifications, clipboard, accessibility, desktop icons, screen lock, session logout, and third-party compositor effects. The built-in compositor uses XComposite, XDamage, XFixes, and XRender; it deliberately omits blur, shadows, and animations.
 - The Rust binary includes native X11 and terminal versions of its launcher, file browser, settings, and calculator. Larger applications such as a graphical terminal, browser, and notification daemon remain optional separate packages. The menu can install supported packages via apt, dnf, pacman, zypper, apk, or Termux `pkg`, then optionally set app defaults.
 - Launches installed terminal/file manager/browser/menu programs by trying common names; see [configuration](docs/CONFIGURATION.md) and [components](docs/COMPONENTS.md).
-- Rust runtime has no third-party Rust crate dependencies. It links to the system Xlib (`libX11`).
+- Rust runtime has no third-party Rust crate dependencies. It links to Xlib plus the XComposite, XDamage, XFixes, and XRender libraries for the built-in optional compositor.
 - Installer creates a display-manager session entry on conventional Linux systems.
 
 ## Quick install (Linux)
 
-The installer checks the latest GitHub release for a matching precompiled binary first. If the release has no binary for your CPU, it downloads the matching source and builds locally. The fallback needs Rust/Cargo, a C toolchain, and X11 development files (`libX11`; usually `libx11-dev`, `libX11-devel`, or `libx11`). Review the [installer script](install.sh) before running it through Bash.
+The installer checks the latest GitHub release for a matching precompiled binary first. If the release has no binary for your CPU, it downloads the matching source and builds locally. The fallback needs Rust/Cargo, a C toolchain, and development files for X11, Composite, Damage, Fixes, and Render (Debian/Ubuntu: `libx11-dev libxcomposite-dev libxdamage-dev libxfixes-dev libxrender-dev`). Review the [installer script](install.sh) before running it through Bash.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/lemonys-001/lemon-de/main/install.sh | bash
@@ -41,7 +41,7 @@ LDE cannot start an Android graphical display by itself. In Termux, use a Linux 
 
 ```sh
 # Debian/Ubuntu example
-sudo apt install build-essential pkg-config libx11-dev
+sudo apt install build-essential pkg-config libx11-dev libxcomposite-dev libxdamage-dev libxfixes-dev libxrender-dev
 cargo build --release
 ./target/release/lemon
 ```

@@ -1,6 +1,7 @@
 //! Small X11 window manager/shell. Core has no third-party Rust dependencies;
 //! optional desktop services are separate user processes configured in ~/.config/lde/config.
 mod config;
+mod compositor;
 mod native_apps;
 mod terminal_ui;
 
@@ -608,11 +609,19 @@ mod startup_tests {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--compositor-toggle") {
+        if let Err(error) = compositor::toggle() { eprintln!("LDE compositor: {error}"); std::process::exit(1); }
+        return;
+    }
+    if args.iter().any(|a| a == "--compositor") {
+        if let Err(error) = compositor::run() { eprintln!("LDE compositor: {error}"); std::process::exit(1); }
+        return;
+    }
     if args.iter().any(|a| a == "--version" || a == "-V") {
         println!("LDE lemon {}", env!("CARGO_PKG_VERSION")); return;
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!("LDE — lightweight X11 desktop shell and tools\n\nUsage: lemon [--menu|--no-menu|--settings|--control-center|--install|--launcher|--files [PATH]|--calculator]\n       lemon --help | --version | --config-path | --init-config\n\nWith no arguments in a terminal without DISPLAY, Lemon opens its interactive menu. If DISPLAY is set (including Termux/VNC), it starts the X11 desktop; use --menu to force the terminal menu.\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings, Super+O control center, Super+C calculator, Super+M minimize, Super+Shift+M restore, Alt+Tab cycle, Super+T layout, Super+Q close, Super+Shift+Q quit, Super+1..9 workspaces. Alt+left/right-drag moves/resizes."); return;
+        println!("LDE — lightweight X11 desktop shell and tools\n\nUsage: lemon [--menu|--no-menu|--settings|--control-center|--compositor|--compositor-toggle|--install|--launcher|--files [PATH]|--calculator]\n       lemon --help | --version | --config-path | --init-config\n\nWith no arguments in a terminal without DISPLAY, Lemon opens its interactive menu. If DISPLAY is set (including Termux/VNC), it starts the X11 desktop; use --menu to force the terminal menu.\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings, Super+O control center, Super+C calculator, Super+M minimize, Super+Shift+M restore, Alt+Tab cycle, Super+T layout, Super+Q close, Super+Shift+Q quit, Super+1..9 workspaces. Alt+left/right-drag moves/resizes."); return;
     }
     if args.iter().any(|a| a == "--config-path") { println!("{}", Config::path().display()); return; }
     if args.iter().any(|a| a == "--init-config") {

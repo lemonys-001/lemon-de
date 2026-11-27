@@ -1,12 +1,12 @@
 # Installation guide
 
-The installer checks the latest GitHub release for a binary matching the host architecture. If an asset is absent or unusable, it downloads the tagged source and builds natively on the user's machine. This fallback needs Rust/Cargo, a C linker, and Xlib development files. The release build workflow produces one `.tar.gz` and `.sha256` artifact per target; maintainers can attach the generated archives to the GitHub release. Native-build fallback is intended for Linux architectures with Rust and Xlib support.
+The installer checks the latest GitHub release for a binary matching the host architecture. If an asset is absent or unusable, it downloads the tagged source and builds natively on the user's machine. This fallback needs Rust/Cargo, a C linker, and X11 plus Composite/Damage/Fixes/Render development files. The release build workflow produces one `.tar.gz` and `.sha256` artifact per target; maintainers can attach the generated archives to the GitHub release. Native-build fallback is intended for Linux architectures with Rust and Xlib support.
 
 ## Requirements
 
 - A working X11 server/session. LDE does **not** support Wayland as a compositor.
-- For a matching release binary: `curl`, `tar`, and a Linux X11 runtime (`libX11`).
-- For source fallback: Rust stable/Cargo, a C compiler/linker and Xlib development library. The Rust code calls the Xlib ABI directly; no third-party Rust crates are needed.
+- For a matching release binary: `curl`, `tar`, and Linux X11 runtimes (`libX11`, `libXcomposite`, `libXdamage`, `libXfixes`, and `libXrender`).
+- For source fallback: Rust stable/Cargo, a C compiler/linker, and Xlib plus XComposite/XDamage/XFixes/XRender development libraries. The Rust code calls these C ABIs directly; no third-party Rust crates are needed.
 - For a useful session: a terminal (`xterm`, `foot`, `kitty`, etc.), file manager, browser, and optionally `rofi` or `dmenu`.
 
 ### Install build dependencies
@@ -15,12 +15,12 @@ Pick the matching command for the Linux distribution. Package names can differ a
 
 | Distribution | Packages (examples) |
 | --- | --- |
-| Debian / Ubuntu / Linux Mint | `sudo apt install build-essential libx11-dev` |
-| Fedora | `sudo dnf install gcc make libX11-devel` |
-| Arch / Manjaro | `sudo pacman -S base-devel libx11` |
-| Alpine | `sudo apk add build-base libx11-dev` |
-| openSUSE | `sudo zypper install gcc make libX11-devel` |
-| Termux (inside a supported Linux proot) | `apt install build-essential libx11-dev` |
+| Debian / Ubuntu / Linux Mint | `sudo apt install build-essential libx11-dev libxcomposite-dev libxdamage-dev libxfixes-dev libxrender-dev` |
+| Fedora | `sudo dnf install gcc make libX11-devel libXcomposite-devel libXdamage-devel libXfixes-devel libXrender-devel` |
+| Arch / Manjaro | `sudo pacman -S base-devel libx11 libxcomposite libxdamage libxfixes libxrender` |
+| Alpine | `sudo apk add build-base libx11-dev libxcomposite-dev libxdamage-dev libxfixes-dev libxrender-dev` |
+| openSUSE | `sudo zypper install gcc make libX11-devel libXcomposite-devel libXdamage-devel libXfixes-devel libXrender-devel` |
+| Termux (inside a supported Linux proot) | `apt install build-essential libx11-dev libxcomposite-dev libxdamage-dev libxfixes-dev libxrender-dev` |
 
 Install Rust with your distribution's Rust package or [rustup](https://www.rust-lang.org/tools/install). The installer intentionally does not invoke a package manager or request root access on your behalf.
 

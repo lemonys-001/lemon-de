@@ -40,12 +40,12 @@ jobs:
           set +e
           {
             sudo apt-get update
-            sudo apt-get install -y libx11-dev
+            sudo apt-get install -y libx11-dev libxcomposite-dev libxdamage-dev libxfixes-dev libxrender-dev
             if [[ -n "${{ matrix.multiarch }}" ]]; then
               sudo dpkg --add-architecture "${{ matrix.multiarch }}"
               sudo apt-get update
               case "${{ matrix.target }}" in
-                i686-*) sudo apt-get install -y gcc-i686-linux-gnu libx11-dev:i386 ;;
+                i686-*) sudo apt-get install -y gcc-i686-linux-gnu libx11-dev:i386 libxcomposite-dev:i386 libxdamage-dev:i386 libxfixes-dev:i386 libxrender-dev:i386 ;;
               esac
             fi
           } > "$RUNNER_TEMP/dependencies.log" 2>&1
