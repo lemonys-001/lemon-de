@@ -1,6 +1,6 @@
 # Feature status
 
-## Available in 0.4.0
+## Available in 0.4.1
 
 - Single-process Rust X11 shell with system Xlib and no third-party Rust crates.
 - Floating/tiled layouts, top or bottom panel, clock, app launch buttons, nine in-memory workspaces, window minimization/restoration, focus cycling, and Alt-drag move/resize.

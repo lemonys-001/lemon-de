@@ -25,9 +25,31 @@ const PACKAGES: &[Package] = &[
     Package { name: "File manager", description: "PCManFM graphical file manager", apt: "pcmanfm", dnf: "pcmanfm", pacman: "pcmanfm", zypper: "pcmanfm", apk: "pcmanfm", pkg: "pcmanfm", setting: "file_manager", command: "pcmanfm" },
     Package { name: "Browser", description: "Firefox web browser", apt: "firefox", dnf: "firefox", pacman: "firefox", zypper: "MozillaFirefox", apk: "firefox", pkg: "firefox", setting: "browser", command: "firefox" },
     Package { name: "Graphical launcher", description: "Rofi application launcher", apt: "rofi", dnf: "rofi", pacman: "rofi", zypper: "rofi", apk: "rofi", pkg: "rofi", setting: "launcher", command: "rofi -show drun" },
-    Package { name: "Notifications", description: "Lightweight notification daemon", apt: "dunst", dnf: "dunst", pacman: "dunst", zypper: "dunst", apk: "dunst", pkg: "dunst", setting: "", command: "" },
+    Package { name: "Notifications", description: "Dunst notification daemon (optional autostart)", apt: "dunst", dnf: "dunst", pacman: "dunst", zypper: "dunst", apk: "dunst", pkg: "dunst", setting: "", command: "dunst" },
     Package { name: "Wallpaper helper", description: "Set wallpaper from an image", apt: "feh", dnf: "feh", pacman: "feh", zypper: "feh", apk: "feh", pkg: "feh", setting: "", command: "" },
+    Package { name: "Power manager", description: "XFCE power and battery controls", apt: "xfce4-power-manager", dnf: "xfce4-power-manager", pacman: "xfce4-power-manager", zypper: "xfce4-power-manager", apk: "xfce4-power-manager", pkg: "xfce4-power-manager", setting: "", command: "xfce4-power-manager" },
+    Package { name: "Screenshooter", description: "XFCE screenshot utility", apt: "xfce4-screenshooter", dnf: "xfce4-screenshooter", pacman: "xfce4-screenshooter", zypper: "xfce4-screenshooter", apk: "xfce4-screenshooter", pkg: "xfce4-screenshooter", setting: "", command: "" },
+    Package { name: "Clipboard manager", description: "XFCE clipboard history helper", apt: "xfce4-clipman", dnf: "xfce4-clipman", pacman: "xfce4-clipman-plugin", zypper: "xfce4-clipman", apk: "xfce4-clipman", pkg: "xfce4-clipman", setting: "", command: "xfce4-clipman" },
+    Package { name: "Archive manager", description: "Xarchiver lightweight archive GUI", apt: "xarchiver", dnf: "xarchiver", pacman: "xarchiver", zypper: "xarchiver", apk: "xarchiver", pkg: "xarchiver", setting: "", command: "" },
+    Package { name: "Appearance", description: "GTK theme and icon chooser", apt: "lxappearance", dnf: "lxappearance", pacman: "lxappearance", zypper: "lxappearance", apk: "lxappearance", pkg: "lxappearance", setting: "", command: "" },
+    Package { name: "Volume control", description: "PulseAudio/PipeWire mixer UI", apt: "pavucontrol", dnf: "pavucontrol", pacman: "pavucontrol", zypper: "pavucontrol", apk: "pavucontrol", pkg: "pavucontrol", setting: "", command: "" },
+    Package { name: "Display settings", description: "ARandR monitor layout tool", apt: "arandr", dnf: "arandr", pacman: "arandr", zypper: "arandr", apk: "arandr", pkg: "arandr", setting: "", command: "" },
+    Package { name: "Compositor", description: "Optional Picom effects and shadows", apt: "picom", dnf: "picom", pacman: "picom", zypper: "picom", apk: "picom", pkg: "picom", setting: "", command: "picom" },
+    Package { name: "Text editor", description: "Mousepad lightweight editor", apt: "mousepad", dnf: "mousepad", pacman: "mousepad", zypper: "mousepad", apk: "mousepad", pkg: "mousepad", setting: "", command: "" },
+    Package { name: "Image viewer", description: "Ristretto lightweight image viewer", apt: "ristretto", dnf: "ristretto", pacman: "ristretto", zypper: "ristretto", apk: "ristretto", pkg: "ristretto", setting: "", command: "" },
+    Package { name: "Task manager", description: "XFCE process monitor GUI", apt: "xfce4-taskmanager", dnf: "xfce4-taskmanager", pacman: "xfce4-taskmanager", zypper: "xfce4-taskmanager", apk: "xfce4-taskmanager", pkg: "xfce4-taskmanager", setting: "", command: "" },
+    Package { name: "Screensaver/locker", description: "XFCE screensaver and lock helper", apt: "xfce4-screensaver", dnf: "xfce4-screensaver", pacman: "xfce4-screensaver", zypper: "xfce4-screensaver", apk: "xfce4-screensaver", pkg: "xfce4-screensaver", setting: "", command: "xfce4-screensaver" },
+    Package { name: "Network tray", description: "NetworkManager GUI applet", apt: "network-manager-gnome", dnf: "NetworkManager-applet", pacman: "network-manager-applet", zypper: "NetworkManager-applet", apk: "network-manager-applet", pkg: "network-manager-applet", setting: "", command: "nm-applet" },
 ];
+
+fn spawn_background(command: &mut Command) -> std::io::Result<std::process::Child> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    command.spawn()
+}
 
 fn read_choice(prompt: &str) -> String {
     print!("{prompt}");
@@ -188,6 +210,15 @@ pub fn install_components() {
                     }
                 }
             }
+            let mut add_autostart = false;
+            for package in chosen.iter().filter(|package| package.setting.is_empty() && !package.command.is_empty()) {
+                if !config.autostart.iter().any(|item| item == package.command)
+                    && read_choice(&format!("Start {} automatically with Lemon? [y/N] ", package.command)).eq_ignore_ascii_case("y") {
+                    config.autostart.push(package.command.to_owned());
+                    add_autostart = true;
+                }
+            }
+            if add_autostart { save(&config); }
             println!("Install complete.");
         }
         Ok(status) => eprintln!("Package manager exited with {status}."),
@@ -248,7 +279,9 @@ pub fn launcher() {
     for (index, app) in matches.iter().enumerate() { println!(" {:>2}. {app}", index + 1); }
     if let Ok(index) = read_choice("Launch number (0 to cancel): ").parse::<usize>() {
         if let Some(app) = index.checked_sub(1).and_then(|i| matches.get(i)) {
-            match Command::new(app.as_str()).stdin(Stdio::null()).spawn() {
+            let mut child = Command::new(app.as_str());
+            child.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+            match spawn_background(&mut child) {
                 Ok(_) => (), Err(error) => eprintln!("Could not launch {app}: {error}"),
             }
         }
@@ -294,10 +327,10 @@ fn open_file(path: &Path) {
     let opener = if !config.file_manager.trim().is_empty() { Some(config.file_manager) }
         else if executable_on_path("xdg-open") { Some("xdg-open".into()) } else { None };
     if let Some(opener) = opener {
-        if let Err(error) = Command::new("sh").arg("-lc").arg(format!("{opener} \"$1\""))
-            .arg("lemon-files").arg(path).stdin(Stdio::null()).spawn() {
-            eprintln!("Could not open {}: {error}", path.display());
-        }
+        let mut command = Command::new("sh");
+        command.arg("-lc").arg(format!("{opener} \"$1\""))
+            .arg("lemon-files").arg(path).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        if let Err(error) = spawn_background(&mut command) { eprintln!("Could not open {}: {error}", path.display()); }
     } else {
         println!("No graphical opener is available; path: {}", path.display());
     }

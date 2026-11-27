@@ -33,5 +33,33 @@ if command -v xvfb-run >/dev/null 2>&1; then
   gui_smoke --files "$tmp"
   gui_smoke --settings
   gui_smoke --calculator
+  xvfb-run -a sh -c '
+    set -eu
+    binary=$1
+    "$binary" --no-menu &
+    wm=$!
+    sleep 0.3
+    kill -0 "$wm" || { echo "Window manager exited before app launch" >&2; exit 1; }
+    check_wm() {
+      if ! kill -0 "$wm"; then
+        wm_status=0
+        wait "$wm" || wm_status=$?
+        echo "Window manager died when an app mapped (exit $wm_status)" >&2
+        exit 1
+      fi
+      state=$(ps -o stat= -p "$wm" 2>/dev/null || true)
+      case "$state" in Z*) echo "Lemon became a zombie after app launch" >&2; exit 1 ;; esac
+    }
+    for app in --launcher --files --settings --calculator; do
+      status=0
+      if [ "$app" = "--files" ]; then timeout 3s "$binary" "$app" . || status=$?
+      else timeout 2s "$binary" "$app" || status=$?; fi
+      [ "$status" -eq 124 ] || { echo "$app client exited unexpectedly: $status" >&2; exit 1; }
+      sleep 0.1
+      check_wm
+    done
+    kill "$wm"
+    wait "$wm" 2>/dev/null || true
+  ' sh "$binary"
 fi
-printf 'Terminal and GUI app smoke tests passed.\n'
+printf 'Terminal, GUI app, and X11 session smoke tests passed.\n'

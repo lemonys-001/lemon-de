@@ -123,10 +123,19 @@ extern "C" {
     fn XGetGeometry(display: *mut Display, drawable: Window, root: *mut Window,
         x: *mut c_int, y: *mut c_int, width: *mut c_uint, height: *mut c_uint,
         border_width: *mut c_uint, depth: *mut c_uint) -> c_int;
-    fn XGrabPointer(display: *mut Display, grab_window: Window, owner_events: c_int,
-        event_mask: c_uint, pointer_mode: c_int, keyboard_mode: c_int,
-        confine_to: Window, cursor: c_ulong, time: c_ulong) -> c_int;
+    fn XGrabButton(display: *mut Display, button: c_uint, modifiers: c_uint,
+        grab_window: Window, owner_events: c_int, event_mask: c_uint,
+        pointer_mode: c_int, keyboard_mode: c_int, confine_to: Window, cursor: c_ulong) -> c_int;
     fn XUngrabPointer(display: *mut Display, time: c_ulong) -> c_int;
+}
+
+extern "C" { fn waitpid(pid: c_int, status: *mut c_int, options: c_int) -> c_int; }
+const WNOHANG: c_int = 1;
+unsafe fn reap_children() {
+    loop {
+        let mut status = 0;
+        if waitpid(-1, &mut status, WNOHANG) <= 0 { break; }
+    }
 }
 
 const KEY_PRESS: c_int = 2;
@@ -175,13 +184,30 @@ const COLOR_UNFOCUSED: c_ulong = 0x505566;
 struct Geometry { x: c_int, y: c_int, width: c_uint, height: c_uint }
 
 fn cstring(s: &str) -> CString { CString::new(s).unwrap_or_else(|_| CString::new(" ").unwrap()) }
+fn spawn_background(command: &mut Command) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    command.spawn().is_ok()
+}
+fn spawn_named(program: &str, args: &[&str]) -> bool {
+    let mut child = Command::new(program);
+    child.args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    spawn_background(&mut child)
+}
 fn shell_command(command: &str) -> bool {
     if command.trim().is_empty() { return false; }
-    Command::new("sh").arg("-lc").arg(command).stdin(Stdio::null()).spawn().is_ok()
+    let mut child = Command::new("sh");
+    child.arg("-lc").arg(command).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    spawn_background(&mut child)
 }
 fn spawn_candidates(candidates: &[&str]) -> bool {
     for candidate in candidates {
-        if Command::new(candidate).stdin(Stdio::null()).spawn().is_ok() { return true; }
+        let mut child = Command::new(candidate);
+        child.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        if spawn_background(&mut child) { return true; }
     }
     false
 }
@@ -196,8 +222,10 @@ fn launch_terminal(config: &Config) {
     }
 }
 fn spawn_builtin(option: &str) -> bool {
-    std::env::current_exe().ok().is_some_and(|exe|
-        Command::new(exe).arg(option).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().is_ok())
+    let Ok(exe) = std::env::current_exe() else { return false; };
+    let mut child = Command::new(exe);
+    child.arg(option).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    spawn_background(&mut child)
 }
 fn launch_files(config: &Config) {
     if !config.file_manager.is_empty() && shell_command(&config.file_manager) { return; }
@@ -216,10 +244,10 @@ fn launch_web(config: &Config) {
 fn launch_menu(config: &Config) {
     if !config.launcher.is_empty() && shell_command(&config.launcher) { return; }
     if std::env::var_os("DISPLAY").is_some() && spawn_builtin("--launcher") { return; }
-    if Command::new("rofi").args(["-show", "drun"]).stdin(Stdio::null()).spawn().is_ok()
-        || spawn_candidates(&["dmenu_run", "bemenu-run"]) { return; }
+    if spawn_named("rofi", &["-show", "drun"]) || spawn_candidates(&["dmenu_run", "bemenu-run"]) { return; }
+    let notice = "printf 'LDE launcher\\n\\nInstall rofi or dmenu for an application menu.\\nHotkeys: Super+Enter terminal, Super+1..9 workspaces.\\n'; exec \"${SHELL:-/bin/sh}\"";
     for term in ["foot", "kitty", "alacritty", "xterm", "urxvt"] {
-        if Command::new(term).args(["-e", "sh", "-lc", "printf 'LDE launcher\\n\\nInstall rofi or dmenu for an application menu.\\nHotkeys: Super+Enter terminal, Super+1..9 workspaces.\\n'; exec \"${SHELL:-/bin/sh}\""]).spawn().is_ok() { return; }
+        if spawn_named(term, &["-e", "sh", "-lc", notice]) { return; }
     }
     eprintln!("LDE: install rofi or dmenu_run for the application launcher.");
 }
@@ -232,14 +260,13 @@ fn open_settings() {
     };
     let path_arg = path.to_string_lossy().to_string();
     for editor in ["mousepad", "featherpad", "xed", "geany", "leafpad", "gedit"] {
-        if Command::new(editor).arg(&path).stdin(Stdio::null()).spawn().is_ok() { return; }
+        if spawn_named(editor, &[path_arg.as_str()]) { return; }
     }
     let command = format!("${{EDITOR:-vi}} {}", shell_quote(&path_arg));
     let mut terminals: Vec<String> = std::env::var("TERMINAL").ok().into_iter().collect();
     terminals.extend(["foot", "kitty", "alacritty", "xterm", "urxvt"].into_iter().map(str::to_owned));
     for term in terminals {
-        if Command::new(&term).arg("-e").arg("sh").arg("-lc").arg(&command)
-            .stdin(Stdio::null()).spawn().is_ok() { return; }
+        if spawn_named(&term, &["-e", "sh", "-lc", command.as_str()]) { return; }
     }
     eprintln!("LDE settings file: {} (set EDITOR or install a text editor and terminal).", path.display());
 }
@@ -394,11 +421,9 @@ unsafe fn switch_workspace(display: *mut Display, root: Window, panel: Window, g
     XRaiseWindow(display, panel);
     draw_panel(display, panel, gc, width, config, target, tiled[target]);
 }
-unsafe fn drag_window(display: *mut Display, root: Window, panel: Window, window: Window,
+unsafe fn drag_window(display: *mut Display, panel: Window, window: Window,
                       button: c_uint, start_x: c_int, start_y: c_int) {
     let Some(initial) = geometry(display, window) else { return; };
-    let mask = (POINTER_MOTION_MASK | BUTTON_RELEASE_MASK) as c_uint;
-    if XGrabPointer(display, root, 0, mask, 1, 1, 0, 0, 0) != 0 { return; }
     let event_mask = POINTER_MOTION_MASK | BUTTON_RELEASE_MASK;
     loop {
         let mut event: XEvent = std::mem::zeroed();
@@ -532,6 +557,7 @@ pub(crate) fn start_desktop() {
         let mut saved_geometry: HashMap<Window, Geometry> = HashMap::new();
         let mut minimized: Vec<Window> = Vec::new();
         loop {
+            reap_children();
             if XPending(display) == 0 {
                 let mut fd = PollFd { fd: XConnectionNumber(display), events: 1, revents: 0 };
                 let ready = poll(&mut fd, 1, 60_000);
@@ -563,7 +589,9 @@ pub(crate) fn start_desktop() {
                     let client_w = ((width - margin * 2).min(width * 3 / 4)).max(320) as c_uint;
                     let client_h = ((height - PANEL_H - margin * 2).min(height * 3 / 4)).max(240) as c_uint;
                     let initial = Geometry { x: margin, y: area_y + margin, width: client_w, height: client_h };
-                    XSelectInput(display, e.window, BUTTON_PRESS_MASK);
+                    let drag_mask = (BUTTON_PRESS_MASK | POINTER_MOTION_MASK | BUTTON_RELEASE_MASK) as c_uint;
+                    XGrabButton(display, 1, MOD1_MASK, e.window, 0, drag_mask, 1, 1, 0, 0);
+                    XGrabButton(display, 3, MOD1_MASK, e.window, 0, drag_mask, 1, 1, 0, 0);
                     XSetWindowBorderWidth(display, e.window, 2);
                     XSetWindowBorder(display, e.window, config.accent_color as c_ulong);
                     XMoveResizeWindow(display, e.window, initial.x, initial.y, initial.width, initial.height);
@@ -685,7 +713,7 @@ pub(crate) fn start_desktop() {
                             }
                             focused = e.window;
                             XSetWindowBorder(display, focused, config.accent_color as c_ulong);
-                            drag_window(display, root, panel, focused, e.button, e.x_root, e.y_root);
+                            drag_window(display, panel, focused, e.button, e.x_root, e.y_root);
                         } else {
                             if focused != 0 { XSetWindowBorder(display, focused, COLOR_UNFOCUSED); }
                             focused = e.window;
