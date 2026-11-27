@@ -127,6 +127,7 @@ extern "C" {
         grab_window: Window, owner_events: c_int, event_mask: c_uint,
         pointer_mode: c_int, keyboard_mode: c_int, confine_to: Window, cursor: c_ulong) -> c_int;
     fn XUngrabPointer(display: *mut Display, time: c_ulong) -> c_int;
+    fn XAllowEvents(display: *mut Display, mode: c_int, time: c_ulong) -> c_int;
 }
 
 extern "C" { fn waitpid(pid: c_int, status: *mut c_int, options: c_int) -> c_int; }
@@ -155,6 +156,9 @@ const SUBSTRUCTURE_NOTIFY_MASK: c_long = 1 << 19;
 const SUBSTRUCTURE_REDIRECT_MASK: c_long = 1 << 20;
 const CW_OVERRIDE_REDIRECT: c_ulong = 1 << 9;
 const MOD1_MASK: c_uint = 1 << 3;
+const ANY_MODIFIER: c_uint = 1 << 15;
+const ASYNC_POINTER: c_int = 0;
+const REPLAY_POINTER: c_int = 2;
 const MOD4_MASK: c_uint = 1 << 6;
 const SHIFT_MASK: c_uint = 1;
 const XK_RETURN: c_ulong = 0xff0d;
@@ -296,12 +300,22 @@ unsafe fn draw_panel(display: *mut Display, panel: Window, gc: GC, width: c_int,
     let title = cstring("LEMON");
     XDrawString(display, panel, gc, 16, 22, title.as_ptr(), 5);
     XSetForeground(display, gc, COLOR_DIM);
-    let buttons = cstring(" Terminal  Files  Web  Calc  Apps");
-    XDrawString(display, panel, gc, 98, 22, buttons.as_ptr(), 33);
+    for (label, x) in [("Terminal", 98), ("Files", 170), ("Web", 228), ("Calc", 280)] {
+        let text = cstring(label);
+        XDrawString(display, panel, gc, x, 22, text.as_ptr(), label.len() as c_int);
+    }
+    XSetForeground(display, gc, config.accent_color as c_ulong);
+    XFillRectangle(display, panel, gc, 330, 4, 62, 26);
+    XSetForeground(display, gc, config.panel_color as c_ulong);
+    let apps = cstring("Apps");
+    XDrawString(display, panel, gc, 340, 22, apps.as_ptr(), 4);
+    XSetForeground(display, gc, COLOR_DIM);
+    let settings = cstring("Settings");
+    XDrawString(display, panel, gc, 400, 22, settings.as_ptr(), 8);
 
-    if width >= 700 {
+    if width >= 900 {
         for i in 0..9 {
-            let x = 425 + i as c_int * 24;
+            let x = 510 + i as c_int * 24;
             if i == current {
                 XSetForeground(display, gc, config.accent_color as c_ulong);
                 XFillRectangle(display, panel, gc, x - 5, 4, 20, 26);
@@ -586,12 +600,14 @@ pub(crate) fn start_desktop() {
                     next_slot += 1;
                     let margin = 24 + (slot as c_int * 28);
                     let area_y = if panel_top { PANEL_H } else { 0 };
-                    let client_w = ((width - margin * 2).min(width * 3 / 4)).max(320) as c_uint;
-                    let client_h = ((height - PANEL_H - margin * 2).min(height * 3 / 4)).max(240) as c_uint;
-                    let initial = Geometry { x: margin, y: area_y + margin, width: client_w, height: client_h };
+                    let client_w = (width - margin * 2).min(720).max(320) as c_uint;
+                    let client_h = (height - PANEL_H - margin * 2).min(560).max(240) as c_uint;
+                    let client_x = margin.min(width - client_w as c_int).max(0);
+                    let client_y = (area_y + margin).min(height - PANEL_H - client_h as c_int).max(area_y);
+                    let initial = Geometry { x: client_x, y: client_y, width: client_w, height: client_h };
                     let drag_mask = (BUTTON_PRESS_MASK | POINTER_MOTION_MASK | BUTTON_RELEASE_MASK) as c_uint;
-                    XGrabButton(display, 1, MOD1_MASK, e.window, 0, drag_mask, 1, 1, 0, 0);
-                    XGrabButton(display, 3, MOD1_MASK, e.window, 0, drag_mask, 1, 1, 0, 0);
+                    XGrabButton(display, 1, ANY_MODIFIER, e.window, 0, drag_mask, 0, 1, 0, 0);
+                    XGrabButton(display, 3, ANY_MODIFIER, e.window, 0, drag_mask, 0, 1, 0, 0);
                     XSetWindowBorderWidth(display, e.window, 2);
                     XSetWindowBorder(display, e.window, config.accent_color as c_ulong);
                     XMoveResizeWindow(display, e.window, initial.x, initial.y, initial.width, initial.height);
@@ -690,17 +706,18 @@ pub(crate) fn start_desktop() {
                 BUTTON_PRESS => {
                     let e = event.button;
                     if e.window == panel {
-                        if width >= 700 && (425..=640).contains(&e.x) {
-                            let target = ((e.x - 425) / 24).clamp(0, 8) as usize;
+                        if width >= 900 && (510..=714).contains(&e.x) {
+                            let target = ((e.x - 510) / 24).clamp(0, 8) as usize;
                             switch_workspace(display, root, panel, gc, &config, &windows, &workspace_of,
                                 &mut current_workspace, target, &tiled, width, height, panel_top, &mut focused);
                         } else {
                             match e.x {
-                                70..=139 => launch_terminal(&config),
-                                140..=209 => launch_files(&config),
-                                210..=269 => launch_web(&config),
-                                270..=329 => launch_calculator(),
-                                330..=420 => launch_menu(&config),
+                                90..=163 => launch_terminal(&config),
+                                164..=219 => launch_files(&config),
+                                220..=275 => launch_web(&config),
+                                276..=326 => launch_calculator(),
+                                330..=394 => launch_menu(&config),
+                                395..=485 => open_settings(),
                                 _ => {}
                             }
                         }
@@ -713,6 +730,7 @@ pub(crate) fn start_desktop() {
                             }
                             focused = e.window;
                             XSetWindowBorder(display, focused, config.accent_color as c_ulong);
+                            XAllowEvents(display, ASYNC_POINTER, e.time);
                             drag_window(display, panel, focused, e.button, e.x_root, e.y_root);
                         } else {
                             if focused != 0 { XSetWindowBorder(display, focused, COLOR_UNFOCUSED); }
@@ -720,6 +738,7 @@ pub(crate) fn start_desktop() {
                             XRaiseWindow(display, focused);
                             XSetWindowBorder(display, focused, config.accent_color as c_ulong);
                             XSetInputFocus(display, focused, 1, 0);
+                            XAllowEvents(display, REPLAY_POINTER, e.time);
                         }
                     }
                 }

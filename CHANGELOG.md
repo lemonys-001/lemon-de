@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2 — 2026-11-26
+
+- Restore normal pointer interaction: clicks focus windows and replay to the app, while Alt-drag uses passive grabs without stealing client button events.
+- Size built-in clients to their 720×560 canvas, clamp their initial placement to the display, and add clearer Apps and Settings panel actions.
+- Apply a configured wallpaper immediately from Lemon Settings when optional `feh` or `nitrogen` is installed.
+- Add a mouse-driven Xvfb smoke test for the built-in app close control.
+
 ## 0.4.1 — 2026-11-26
 
 - Fix two fatal X11 launch races: defer focus until native windows are mapped by the WM, and stop selecting exclusive button events on client windows; Alt-drag uses passive grabs instead. This prevents common applets from dying with `BadMatch` and the WM from exiting with `BadAccess`.

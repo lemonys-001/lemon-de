@@ -8,7 +8,7 @@ When a valid `DISPLAY` is available, these commands open lightweight Xlib window
 
 - **Lemon Launcher** — `lemon --launcher` or **Super+D**. Filters commands on `PATH`, supports keyboard search, and launches the selected command.
 - **Lemon Files** — `lemon --files [PATH]` or the panel's **Files** action. Browse directories, enter folders, and open files using the configured file-manager command or `xdg-open`.
-- **Lemon Settings** — `lemon --settings` or **Super+I**. Edit app defaults, panel placement/colors, layout, wallpaper, and autostart commands; press Ctrl+S to save in the X11 window.
+- **Lemon Settings** — `lemon --settings`, **Super+I**, or the panel's **Settings** button. Edit app defaults, panel placement/colors, layout, wallpaper image path, and autostart commands; press Ctrl+S to save. If `feh` or `nitrogen` is installed, saving applies the wallpaper immediately.
 - **Lemon Calculator** — `lemon --calculator`, **Super+C**, or the panel's **Calc** action. Basic arithmetic, parentheses, keyboard and mouse input.
 
 The applets use system Xlib and the Rust standard library only. They have no toolkit, bundled web engine, animation loop, or persistent background service. A normal LDE session continues to own window management; applets run as ordinary X11 clients so they can be moved/resized with Alt+left/right-drag. Super+M minimizes a client, Super+Shift+M restores the last minimized one, and Alt+Tab cycles visible clients. There are no titlebar buttons yet.

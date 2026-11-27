@@ -58,6 +58,19 @@ if command -v xvfb-run >/dev/null 2>&1; then
       sleep 0.1
       check_wm
     done
+    if command -v xdotool >/dev/null 2>&1; then
+      timeout 5s "$binary" --calculator >/dev/null 2>&1 &
+      client=$!
+      sleep 0.3
+      window=$(xdotool search --onlyvisible --name "Lemon Calculator" | tail -n 1)
+      eval "$(xdotool getwindowgeometry --shell "$window")"
+      [ "$WIDTH" -eq 720 ] && [ "$HEIGHT" -eq 560 ] || { echo "Built-in app has unexpected size: ${WIDTH}x${HEIGHT}" >&2; exit 1; }
+      xdotool mousemove --sync "$((X + WIDTH - 50))" "$((Y + 34))" click 1
+      client_status=0
+      wait "$client" || client_status=$?
+      [ "$client_status" -eq 0 ] || { echo "Mouse click did not close the built-in calculator (status $client_status)" >&2; exit 1; }
+      check_wm
+    fi
     kill "$wm"
     wait "$wm" 2>/dev/null || true
   ' sh "$binary"

@@ -1,10 +1,10 @@
 # Feature status
 
-## Available in 0.4.1
+## Available in 0.4.2
 
 - Single-process Rust X11 shell with system Xlib and no third-party Rust crates.
-- Floating/tiled layouts, top or bottom panel, clock, app launch buttons, nine in-memory workspaces, window minimization/restoration, focus cycling, and Alt-drag move/resize.
-- Interactive terminal menu, package install/default selection flow, and GUI + terminal versions of Lemon Launcher, Lemon Files, Lemon Settings, and a basic calculator.
+- Floating/tiled layouts, top or bottom panel, clock, quick-launch actions, Apps and Settings buttons, nine in-memory workspaces, window minimization/restoration, click-to-focus, and Alt-drag move/resize.
+- Interactive terminal menu, optional package install/default selection flow, and GUI + terminal versions of Lemon Launcher, Lemon Files, Lemon Settings, and a basic calculator. Built-in applets have a shared in-window top bar with close action and a consistent starting size.
 - A graphical terminal emulator, web browser, full-featured file manager, and optional notification/power integrations remain separate packages.
 - Source installer, X session entry, and Termux/VNC documentation.
 
