@@ -22,35 +22,48 @@ grep -q '= 4' <<<"$calculator"
 
 if command -v xvfb-run >/dev/null 2>&1; then
   gui_smoke() {
-    local status=0
-    timeout 2s xvfb-run -a "$binary" "$@" >/dev/null 2>&1 || status=$?
+    local status=0 log="$tmp/gui-${1#--}.log"
+    timeout 2s xvfb-run -a "$binary" "$@" >"$log" 2>&1 || status=$?
     if [[ $status -ne 124 ]]; then
-      printf 'GUI app failed to remain open (%s): exit %s\n' "$*" "$status" >&2
+      detail=$(tail -n 20 "$log" | tr "\n" " ")
+      echo "::error title=GUI smoke failed::$* exited with $status: $detail"
       return 1
     fi
   }
   gui_smoke --launcher
   gui_smoke --files "$tmp"
   gui_smoke --settings
+  gui_smoke --control-center
   gui_smoke --calculator
   xvfb-run -a sh -c '
     set -eu
     binary=$1
-    "$binary" --no-menu &
+    wm_log=$2
+    "$binary" --no-menu >"$wm_log" 2>&1 &
     wm=$!
     sleep 0.3
-    kill -0 "$wm" || { echo "Window manager exited before app launch" >&2; exit 1; }
+    if ! kill -0 "$wm"; then
+      wm_status=0; wait "$wm" || wm_status=$?
+      detail=$(tail -n 20 "$wm_log" | tr "\n" " ")
+      echo "::error title=Window manager startup::exited with $wm_status: $detail"
+      exit 1
+    fi
+    root_properties=$(xprop -root _NET_NUMBER_OF_DESKTOPS 2>&1 || true)
+    if ! printf "%s\n" "$root_properties" | grep -q "= 9"; then
+      echo "::error title=EWMH property missing::$root_properties"
+      exit 1
+    fi
     check_wm() {
       if ! kill -0 "$wm"; then
-        wm_status=0
-        wait "$wm" || wm_status=$?
-        echo "Window manager died when an app mapped (exit $wm_status)" >&2
+        wm_status=0; wait "$wm" || wm_status=$?
+        detail=$(tail -n 20 "$wm_log" | tr "\n" " ")
+        echo "::error title=Window manager crashed::exit $wm_status: $detail"
         exit 1
       fi
       state=$(ps -o stat= -p "$wm" 2>/dev/null || true)
       case "$state" in Z*) echo "Lemon became a zombie after app launch" >&2; exit 1 ;; esac
     }
-    for app in --launcher --files --settings --calculator; do
+    for app in --launcher --files --settings --control-center --calculator; do
       status=0
       if [ "$app" = "--files" ]; then timeout 3s "$binary" "$app" . || status=$?
       else timeout 2s "$binary" "$app" || status=$?; fi
@@ -65,6 +78,8 @@ if command -v xvfb-run >/dev/null 2>&1; then
       window=$(xdotool search --onlyvisible --name "Lemon Calculator" | tail -n 1)
       eval "$(xdotool getwindowgeometry --shell "$window")"
       [ "$WIDTH" -eq 720 ] && [ "$HEIGHT" -eq 560 ] || { echo "Built-in app has unexpected size: ${WIDTH}x${HEIGHT}" >&2; exit 1; }
+      desktop_property=$(xprop -id "$window" _NET_WM_DESKTOP 2>&1 || true)
+      if ! printf "%s\n" "$desktop_property" | grep -q "= 0"; then echo "::error title=EWMH client property missing::$desktop_property"; exit 1; fi
       xdotool mousemove --sync "$((X + WIDTH - 50))" "$((Y + 34))" click 1
       client_status=0
       wait "$client" || client_status=$?
@@ -73,6 +88,6 @@ if command -v xvfb-run >/dev/null 2>&1; then
     fi
     kill "$wm"
     wait "$wm" 2>/dev/null || true
-  ' sh "$binary"
+  ' sh "$binary" "$tmp/wm.log"
 fi
 printf 'Terminal, GUI app, and X11 session smoke tests passed.\n'

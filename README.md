@@ -2,15 +2,16 @@
 
 LDE is a deliberately small **Rust/X11 desktop shell and window manager**. The core remains dependency-light and delegates optional desktop services to separately installed programs.
 
-> **Early preview (0.4.2), not a complete XFCE replacement.** LDE targets X11 only. It has no Wayland compositor, standard titlebar decorations for external apps, visual control center, or built-in notification/power/accessibility services. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
+> **Early preview (0.5.0), not a complete XFCE replacement.** LDE targets X11 only. It has no Wayland compositor, standard titlebar decorations for external apps, or bundled browser/terminal. Optional desktop tools are discovered and launched from a lightweight Control Center. Please read the [feature status](docs/FEATURES.md) before replacing a daily-driver desktop.
 
 ## What works today
 
 - Floating windows with Alt+left-drag to move and Alt+right-drag to resize, minimize/restore (`Super+M` / `Super+Shift+M`), Alt+Tab focus cycling, and optional master/stack tiling (`Super+T`).
 - Configurable top/bottom panel, app launch buttons and nine clickable/keyboard-selectable workspaces.
-- `Super+Enter` terminal, `Super+D` native launcher, `Super+I` graphical Lemon Settings, `Super+C` calculator, `Super+Q` close, `Super+Shift+Q` quit, and `Super+M` minimize.
+- `Super+Enter` terminal, `Super+D` native launcher, `Super+I` Lemon Settings, `Super+O` Control Center, `Super+C` calculator, `Super+Q` graceful close (ICCCM `WM_DELETE_WINDOW` where supported), `Super+Shift+Q` quit, and `Super+M` minimize.
 - **Interactive terminal menu:** run `lemon` in a terminal without `DISPLAY` to open the menu for starting the desktop, installing optional packages, opening Lemon Settings, or using the built-in Rust command launcher and file browser. If `DISPLAY` is set—including Termux/VNC—`lemon` starts the desktop; pass `--menu` to explicitly force the terminal menu. The panel exposes Apps and Settings buttons; Settings can apply a wallpaper through optional `feh` or `nitrogen`.
 - **Lemon Settings:** edit app defaults, panel position/colors, layout, wallpaper, and autostart commands without manually editing the config file.
+- **Control Center (`Super+O`):** discovers optional system tools for sound, network, Bluetooth, displays, appearance, power, notifications, clipboard, accessibility, desktop icons, screen lock, session logout, and optional X11 compositor effects. These are launched only when installed; LDE does not bundle duplicate heavyweight services.
 - The Rust binary includes native X11 and terminal versions of its launcher, file browser, settings, and calculator. Larger applications such as a graphical terminal, browser, and notification daemon remain optional separate packages. The menu can install supported packages via apt, dnf, pacman, zypper, apk, or Termux `pkg`, then optionally set app defaults.
 - Launches installed terminal/file manager/browser/menu programs by trying common names; see [configuration](docs/CONFIGURATION.md) and [components](docs/COMPONENTS.md).
 - Rust runtime has no third-party Rust crate dependencies. It links to the system Xlib (`libX11`).

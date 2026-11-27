@@ -9,8 +9,8 @@ The `Build release binaries` workflow is the single release pipeline.
 3. Create and push a version tag pointing at that commit, for example:
 
    ```sh
-   git tag v0.4.2
-   git push origin v0.4.2
+   git tag v0.5.0
+   git push origin v0.5.0
    ```
 
 4. The tag push starts `.github/workflows/release-binaries.yml`. It checks that `vX.Y.Z` matches `Cargo.toml`, builds each target, packages `lemon-vX.Y.Z-TARGET.tar.gz` plus a `.sha256` sidecar, and automatically creates/updates the GitHub Release with all the successful packages.
