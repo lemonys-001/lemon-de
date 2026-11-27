@@ -71,7 +71,85 @@ impl Field{
  fn edit_value(self,c:&Config)->String{if matches!(self,Self::Autostart){String::new()}else{self.value(c)}}
  fn set(self,c:&mut Config,v:&str)->Result<(),String>{let clean=v.replace(['\n','\r']," ");match self{Self::Terminal=>c.terminal=clean,Self::Launcher=>c.launcher=clean,Self::Files=>c.file_manager=clean,Self::Browser=>c.browser=clean,Self::Wallpaper=>c.wallpaper=clean,Self::Autostart=>{if v.trim()=="!clear"{c.autostart.clear()}else if !clean.trim().is_empty(){c.autostart.push(clean)}else{return Err("Enter a command or !clear".into())}},Self::Panel if v=="top"||v=="bottom"=>c.panel_position=v.into(),Self::Layout if v=="floating"||v=="tiled"=>c.layout=v.into(),Self::PanelColor|Self::Accent|Self::Background=>{let s=v.trim().trim_start_matches('#').trim_start_matches("0x");let n=u64::from_str_radix(s,16).ok().filter(|n|*n<=0xffffff).ok_or("Color must be 6 hex digits")?;match self{Self::PanelColor=>c.panel_color=n,Self::Accent=>c.accent_color=n,_=>c.background_color=n}},Self::Panel|Self::Layout=>return Err("Choose top/bottom or floating/tiled".into())}Ok(())}
 }
-pub fn settings()->bool{let Some(ui)=Ui::open("Lemon Settings")else{return false};let mut cfg=Config::load();let fields=Field::all();let(mut sel,mut editing)=(0usize,false);let mut draft=String::new();let mut status="↑/↓ select · Enter edit · Ctrl+S save · Esc close".to_owned();loop{shell(&ui,"Lemon Settings","Changes are saved to the LDE user config",&status);for(i,f)in fields.iter().enumerate(){let y=ROW+i as c_int*34;if i==sel{ui.fill(22,y-17,W-44,29,HILITE)}ui.text(34,y,f.label(),if i==sel{ACCENT}else{TEXT});let value=if editing&&i==sel{draft.clone()}else{f.value(&cfg)};ui.text(280,y,&value.chars().take(54).collect::<String>(),MUTED)}ui.text(34,488,"Autostart: enter a command to add · type !clear to remove all",MUTED);unsafe{XFlush(ui.d);}let mut e=ui.event();match unsafe{e.type_}{EXPOSE=>continue,KEY=>{let mut k=unsafe{e.key};let(s,ch)=key(&mut k);if s==ESC{if editing{editing=false;status="Edit cancelled".into()}else{break}}else if k.state&CTRL!=0&&(s==KEY_S||ch=="\u{13}"){match cfg.save(){Ok(p)=>status=format!("Saved {}",p.display()),Err(x)=>status=x}}else if editing{if s==RETURN||s==TAB{match fields[sel].set(&mut cfg,&draft){Ok(())=>{editing=false;status="Applied · Ctrl+S saves".into()},Err(x)=>status=x}}else if s==BACKSPACE{draft.pop();}else if !ch.is_empty()&&ch.chars().all(|c|!c.is_control()){draft.push_str(&ch)}}else if s==UP{sel=sel.saturating_sub(1)}else if s==DOWN{sel=(sel+1).min(fields.len()-1)}else if s==RETURN{draft=fields[sel].edit_value(&cfg);editing=true;status="Type value · Enter apply · Esc cancel".into()}},BUTTON=>{let b=unsafe{e.button};if close_click(&b){break}if b.y>=ROW-17&&b.y<ROW+fields.len()as c_int*34{sel=((b.y-(ROW-17))/34)as usize;draft=fields[sel].edit_value(&cfg);editing=true;status="Type value · Enter apply · Ctrl+S save".into()}else if b.y>510{match cfg.save(){Ok(p)=>status=format!("Saved {}",p.display()),Err(x)=>status=x}}},_=>{}}}ui.close();true}
+fn save_settings(config: &Config) -> String {
+    match config.save() {
+        Ok(path) if !config.wallpaper.trim().is_empty() => match apply_wallpaper(&config.wallpaper) {
+            Ok(()) => format!("Saved settings and applied wallpaper · {}", path.display()),
+            Err(error) => format!("Saved settings · {error}"),
+        },
+        Ok(path) => format!("Saved {}", path.display()),
+        Err(error) => error,
+    }
+}
+
+fn apply_wallpaper(path: &str) -> Result<(), String> {
+    for (program, args) in [
+        ("feh", vec!["--bg-fill", path]),
+        ("nitrogen", vec!["--set-zoom-fill", path]),
+    ] {
+        if matches!(Command::new(program).args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status(), Ok(status) if status.success()) {
+            return Ok(());
+        }
+    }
+    Err("could not apply wallpaper; install feh or nitrogen".into())
+}
+
+pub fn settings() -> bool {
+    let Some(ui) = Ui::open("Lemon Settings") else { return false };
+    let mut config = Config::load();
+    let fields = Field::all();
+    let (mut selected, mut editing) = (0usize, false);
+    let mut draft = String::new();
+    let mut status = "Click a row or use ↑/↓ and Enter · Ctrl+S saves".to_owned();
+    loop {
+        shell(&ui, "Lemon Settings", "Desktop · apps · wallpaper", &status);
+        for (index, field) in fields.iter().enumerate() {
+            let y = ROW + index as c_int * 34;
+            if index == selected { ui.fill(22, y - 17, W - 44, 29, HILITE); }
+            ui.text(34, y, field.label(), if index == selected { ACCENT } else { TEXT });
+            let value = if editing && index == selected { draft.clone() } else { field.value(&config) };
+            ui.text(280, y, &value.chars().take(54).collect::<String>(), MUTED);
+        }
+        ui.text(34, 488, "Wallpaper path: enter an image path, then Ctrl+S or click footer to apply", MUTED);
+        unsafe { XFlush(ui.d); }
+        let mut event = ui.event();
+        match unsafe { event.type_ } {
+            EXPOSE => continue,
+            KEY => {
+                let mut key_event = unsafe { event.key };
+                let (symbol, text) = key(&mut key_event);
+                if symbol == ESC {
+                    if editing { editing = false; status = "Edit cancelled".into(); } else { break; }
+                } else if key_event.state & CTRL != 0 && (symbol == KEY_S || text == "\u{13}") {
+                    status = save_settings(&config);
+                } else if editing {
+                    if symbol == RETURN || symbol == TAB {
+                        match fields[selected].set(&mut config, &draft) {
+                            Ok(()) => { editing = false; status = "Applied · Ctrl+S saves".into(); }
+                            Err(error) => status = error,
+                        }
+                    } else if symbol == BACKSPACE { draft.pop(); }
+                    else if !text.is_empty() && text.chars().all(|ch| !ch.is_control()) { draft.push_str(&text); }
+                } else if symbol == UP { selected = selected.saturating_sub(1); }
+                else if symbol == DOWN { selected = (selected + 1).min(fields.len() - 1); }
+                else if symbol == RETURN { draft = fields[selected].edit_value(&config); editing = true; status = "Type a value · Enter applies · Esc cancels".into(); }
+            }
+            BUTTON => {
+                let button = unsafe { event.button };
+                if close_click(&button) { break; }
+                if button.y >= ROW - 17 && button.y < ROW + fields.len() as c_int * 34 {
+                    selected = ((button.y - (ROW - 17)) / 34) as usize;
+                    draft = fields[selected].edit_value(&config);
+                    editing = true;
+                    status = "Type a value · Enter applies · Ctrl+S saves".into();
+                } else if button.y > 510 { status = save_settings(&config); }
+            }
+            _ => {}
+        }
+    }
+    ui.close();
+    true
+}
 
 struct Parser<'a>{b:&'a[u8],i:usize}
 impl<'a> Parser<'a>{
