@@ -31,12 +31,12 @@ This is an experimental community route, not a native Android desktop. LDE speak
 
    ```sh
    export DISPLAY=:1
-   ./target/release/lemon
+   ./target/release/lemon --no-menu
    ```
 
-   In LDE 0.3.0, if launching from an interactive Termux/proot shell opens the terminal menu instead of the desktop, use `./target/release/lemon --no-menu` as a workaround. LDE 0.3.1 fixes this routing: with `DISPLAY` set, a terminal launch starts the X11 desktop. The explicit `--menu` option still opens the terminal menu.
+   Use the actual VNC display number if it is not `:1`. In a VNC startup script, make the window manager the foreground session process, for example `exec /path/to/lemon --no-menu`; do not background it and let the startup script exit. The 0.3.1+ startup routing also detects `DISPLAY` when Lemon is started from an interactive terminal.
 
-   If you launch via a VNC startup script, make its final session command run `lemon` (or the installed path). A session command may need `exec lemon` so the WM remains attached to the VNC session.
+   Native app windows let the window manager assign focus after mapping, avoiding X11 BadMatch errors. LDE also avoids taking exclusive button events away from clients; Alt-drag uses passive grabs instead, preventing BadAccess failures that could terminate the window manager. Desktop apps are launched in separate process groups, reducing the chance that VNC wrappers which clean up a child process group also terminate Lemon. Keep the VNC server and Lemon in the same Linux userspace and do not put a single application as the final xstartup command.
 
 ## Notes and limitations
 

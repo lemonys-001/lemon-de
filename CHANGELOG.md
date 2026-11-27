@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 — 2026-11-26
+
+- Fix two fatal X11 launch races: defer focus until native windows are mapped by the WM, and stop selecting exclusive button events on client windows; Alt-drag uses passive grabs instead. This prevents common applets from dying with `BadMatch` and the WM from exiting with `BadAccess`.
+- Isolate launched apps into their own process groups and reap exited children to avoid process-group cleanup taking down the VNC window manager.
+- Expand the opt-in system package catalog with XFCE-style utilities; no optional packages are installed by default.
+- Add Xvfb session-survival smoke tests for built-in app launches.
+
 ## 0.4.0 — 2026-11-26
 
 - Add native Xlib GUI versions of Lemon Launcher, Lemon Files, Lemon Settings, and a basic calculator, while retaining terminal interfaces.
