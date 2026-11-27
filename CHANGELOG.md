@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — 2026-11-26
+
+- Refresh the native app and panel styling with a modern slate/blue palette, rounded action surfaces, clearer headers, and more consistent sizing/placement.
+- Add a lightweight Control Center that discovers optional sound, network, Bluetooth, display, appearance, power, notifications, clipboard, accessibility, desktop-icon, screen-lock, logout, and optional X11 compositor tools; launch only installed components.
+- Publish basic EWMH workspace, active-window, and client desktop metadata; send ICCCM `WM_DELETE_WINDOW` requests before falling back to force-closing clients.
+- Add `Super+O` to open the Control Center and cover it in the Xvfb GUI smoke test.
+- Keep LDE X11-only and do not bundle browsers, terminals, services, or system-control tools; Wayland compositor, effects, external titlebars, multi-monitor hotplug, persistent workspaces, localization, and complete EWMH/ICCCM remain future work.
+
 ## 0.4.2 — 2026-11-26
 
 - Restore normal pointer interaction: clicks focus windows and replay to the app, while Alt-drag uses passive grabs without stealing client button events.

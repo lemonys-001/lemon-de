@@ -17,9 +17,9 @@ wallpaper = /home/alex/Pictures/wallpaper.jpg
 # panel_position supports top or bottom; layout supports floating or tiled.
 panel_position = top
 layout = floating
-panel_color = 0x222534
-accent_color = #ffb84d
-background_color = 0x171923
+panel_color = 0x172033
+accent_color = #60a5fa
+background_color = 0x111827
 
 # Optional desktop/session components. One command per setting line.
 autostart = dunst

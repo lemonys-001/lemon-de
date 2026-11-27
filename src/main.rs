@@ -53,6 +53,13 @@ struct XExposeEvent {
     window: Window, x: c_int, y: c_int, width: c_int, height: c_int, count: c_int,
 }
 #[repr(C)] #[derive(Clone, Copy)]
+union XClientMessageData { b: [c_char; 20], s: [c_short; 10], l: [c_long; 5] }
+#[repr(C)] #[derive(Clone, Copy)]
+struct XClientMessageEvent {
+    type_: c_int, serial: c_ulong, send_event: c_int, display: *mut Display,
+    window: Window, message_type: c_ulong, format: c_int, data: XClientMessageData,
+}
+#[repr(C)] #[derive(Clone, Copy)]
 struct XDestroyWindowEvent {
     type_: c_int, serial: c_ulong, send_event: c_int, display: *mut Display,
     event: Window, window: Window,
@@ -65,6 +72,7 @@ struct XDestroyWindowEvent {
     map_request: XMapRequestEvent,
     configure_request: XConfigureRequestEvent,
     expose: XExposeEvent,
+    client_message: XClientMessageEvent,
     destroy: XDestroyWindowEvent,
     pad: [c_long; 24],
 }
@@ -92,6 +100,9 @@ extern "C" {
         attributes: *mut XSetWindowAttributes) -> c_int;
     fn XSelectInput(display: *mut Display, window: Window, mask: c_long) -> c_int;
     fn XSetWindowBackground(display: *mut Display, window: Window, pixel: c_ulong) -> c_int;
+    fn XChangeProperty(display: *mut Display, window: Window, property: c_ulong, type_: c_ulong,
+        format: c_int, mode: c_int, data: *const u8, nelements: c_int) -> c_int;
+    fn XDeleteProperty(display: *mut Display, window: Window, property: c_ulong) -> c_int;
     fn XClearWindow(display: *mut Display, window: Window) -> c_int;
     fn XMapWindow(display: *mut Display, window: Window) -> c_int;
     fn XUnmapWindow(display: *mut Display, window: Window) -> c_int;
@@ -108,6 +119,8 @@ extern "C" {
     fn XSetForeground(display: *mut Display, gc: GC, foreground: c_ulong) -> c_int;
     fn XFillRectangle(display: *mut Display, drawable: Window, gc: GC, x: c_int,
         y: c_int, width: c_uint, height: c_uint) -> c_int;
+    fn XFillArc(display: *mut Display, drawable: Window, gc: GC, x: c_int,
+        y: c_int, width: c_uint, height: c_uint, angle1: c_int, angle2: c_int) -> c_int;
     fn XDrawString(display: *mut Display, drawable: Window, gc: GC, x: c_int,
         y: c_int, string: *const c_char, length: c_int) -> c_int;
     fn XFlush(display: *mut Display) -> c_int;
@@ -115,6 +128,10 @@ extern "C" {
         time: c_ulong) -> c_int;
     fn XSetWindowBorderWidth(display: *mut Display, window: Window, width: c_uint) -> c_int;
     fn XSetWindowBorder(display: *mut Display, window: Window, pixel: c_ulong) -> c_int;
+    fn XInternAtom(display: *mut Display, name: *const c_char, only_if_exists: c_int) -> c_ulong;
+    fn XGetWMProtocols(display: *mut Display, window: Window, protocols: *mut *mut c_ulong, count: *mut c_int) -> c_int;
+    fn XSendEvent(display: *mut Display, window: Window, propagate: c_int, event_mask: c_long, event: *mut XEvent) -> c_int;
+    fn XFree(data: *mut c_void) -> c_int;
     fn XKillClient(display: *mut Display, resource: c_ulong) -> c_int;
     fn XGrabKey(display: *mut Display, keycode: c_int, modifiers: c_uint,
         grab_window: Window, owner_events: c_int, pointer_mode: c_int,
@@ -145,6 +162,7 @@ const BUTTON_RELEASE: c_int = 5;
 const MOTION_NOTIFY: c_int = 6;
 const EXPOSE: c_int = 12;
 const DESTROY_NOTIFY: c_int = 17;
+const CLIENT_MESSAGE: c_int = 33;
 const MAP_REQUEST: c_int = 20;
 const CONFIGURE_REQUEST: c_int = 23;
 const KEY_PRESS_MASK: c_long = 1;
@@ -164,6 +182,7 @@ const SHIFT_MASK: c_uint = 1;
 const XK_RETURN: c_ulong = 0xff0d;
 const XK_D: c_ulong = 0x64;
 const XK_I: c_ulong = 0x69;
+const XK_O: c_ulong = 0x6f;
 const XK_Q: c_ulong = 0x71;
 const XK_T: c_ulong = 0x74;
 const XK_M: c_ulong = 0x6d;
@@ -181,13 +200,59 @@ const XK_9: c_ulong = 0x39;
 const PANEL_H: c_int = 34;
 const COLOR_TEXT: c_ulong = 0xf4f1e8;
 const COLOR_DIM: c_ulong = 0xaaaebe;
-const COLOR_FOCUS: c_ulong = 0xffb84d;
+const COLOR_FOCUS: c_ulong = 0x60a5fa;
 const COLOR_UNFOCUSED: c_ulong = 0x505566;
 
 #[derive(Clone, Copy)]
 struct Geometry { x: c_int, y: c_int, width: c_uint, height: c_uint }
+#[derive(Clone, Copy)]
+struct Ewmh { current_desktop: c_ulong, window_desktop: c_ulong, active_window: c_ulong, close_window: c_ulong }
 
 fn cstring(s: &str) -> CString { CString::new(s).unwrap_or_else(|_| CString::new(" ").unwrap()) }
+
+const XA_ATOM: c_ulong = 4;
+const XA_CARDINAL: c_ulong = 6;
+const XA_WINDOW: c_ulong = 33;
+unsafe fn intern_atom(display: *mut Display, name: &str) -> c_ulong {
+    XInternAtom(display, cstring(name).as_ptr(), 0)
+}
+unsafe fn change_u32_property(display: *mut Display, window: Window, property: c_ulong,
+                              type_: c_ulong, values: &[c_ulong]) {
+    XChangeProperty(display, window, property, type_, 32, 0,
+        values.as_ptr().cast::<u8>(), values.len() as c_int);
+}
+unsafe fn init_ewmh(display: *mut Display, root: Window) -> Ewmh {
+    let names = ["_NET_SUPPORTED", "_NET_SUPPORTING_WM_CHECK", "_NET_WM_NAME",
+        "_NET_ACTIVE_WINDOW", "_NET_NUMBER_OF_DESKTOPS", "_NET_CURRENT_DESKTOP",
+        "_NET_DESKTOP_NAMES", "_NET_WM_DESKTOP", "_NET_CLOSE_WINDOW"];
+    let atoms: Vec<c_ulong> = names.iter().map(|name| intern_atom(display, name)).collect();
+    let check = XCreateSimpleWindow(display, root, -1, -1, 1, 1, 0, 0, 0);
+    let support = atoms[1];
+    let utf8 = intern_atom(display, "UTF8_STRING");
+    change_u32_property(display, root, support, XA_WINDOW, &[check]);
+    change_u32_property(display, check, support, XA_WINDOW, &[check]);
+    let wm_name = cstring("LDE");
+    XChangeProperty(display, check, atoms[2], utf8, 8, 0,
+        wm_name.as_bytes().as_ptr(), wm_name.as_bytes().len() as c_int);
+    change_u32_property(display, root, atoms[0], XA_ATOM, &atoms[1..]);
+    change_u32_property(display, root, atoms[4], XA_CARDINAL, &[9]);
+    change_u32_property(display, root, atoms[5], XA_CARDINAL, &[0]);
+    let mut desktop_names = Vec::new();
+    for index in 1..=9 { desktop_names.extend_from_slice(format!("Workspace {index}\0").as_bytes()); }
+    XChangeProperty(display, root, atoms[6], utf8, 8, 0,
+        desktop_names.as_ptr(), desktop_names.len() as c_int);
+    Ewmh { current_desktop: atoms[5], window_desktop: atoms[7], active_window: atoms[3], close_window: atoms[8] }
+}
+unsafe fn set_ewmh_desktop(display: *mut Display, ewmh: &Ewmh, window: Window, desktop: usize) {
+    change_u32_property(display, window, ewmh.window_desktop, XA_CARDINAL, &[desktop as c_ulong]);
+}
+unsafe fn set_ewmh_current_desktop(display: *mut Display, root: Window, ewmh: &Ewmh, desktop: usize) {
+    change_u32_property(display, root, ewmh.current_desktop, XA_CARDINAL, &[desktop as c_ulong]);
+}
+unsafe fn set_ewmh_active_window(display: *mut Display, root: Window, ewmh: &Ewmh, window: Window) {
+    if window == 0 { XDeleteProperty(display, root, ewmh.active_window); }
+    else { change_u32_property(display, root, ewmh.active_window, XA_WINDOW, &[window]); }
+}
 fn spawn_background(command: &mut Command) -> bool {
     #[cfg(unix)]
     {
@@ -255,7 +320,35 @@ fn launch_menu(config: &Config) {
     }
     eprintln!("LDE: install rofi or dmenu_run for the application launcher.");
 }
+unsafe fn request_close(display: *mut Display, window: Window) {
+    let protocols_atom = XInternAtom(display, cstring("WM_PROTOCOLS").as_ptr(), 0);
+    let delete_atom = XInternAtom(display, cstring("WM_DELETE_WINDOW").as_ptr(), 0);
+    let mut protocols: *mut c_ulong = ptr::null_mut();
+    let mut count = 0;
+    if XGetWMProtocols(display, window, &mut protocols, &mut count) != 0 {
+        let supports_delete = !protocols.is_null()
+            && std::slice::from_raw_parts(protocols, count.max(0) as usize).contains(&delete_atom);
+        if !protocols.is_null() { XFree(protocols.cast()); }
+        if supports_delete {
+            let mut event: XEvent = std::mem::zeroed();
+            event.client_message = XClientMessageEvent {
+                type_: CLIENT_MESSAGE, serial: 0, send_event: 1, display, window,
+                message_type: protocols_atom, format: 32,
+                data: XClientMessageData { l: [delete_atom as c_long, 0, 0, 0, 0] },
+            };
+            XSendEvent(display, window, 0, 0, &mut event);
+            XFlush(display);
+            return;
+        }
+    }
+    XKillClient(display, window);
+}
+
 fn shell_quote(value: &str) -> String { format!("'{}'", value.replace('\'', "'\\''")) }
+fn open_control_center() {
+    if std::env::var_os("DISPLAY").is_some() && spawn_builtin("--control-center") { return; }
+    eprintln!("LDE: the graphical Control Center requires an X11 display.");
+}
 fn open_settings() {
     if std::env::var_os("DISPLAY").is_some() && spawn_builtin("--settings") { return; }
     let path = match Config::ensure_file() {
@@ -290,48 +383,71 @@ fn start_optional_services(config: &Config) {
     }
 }
 
+unsafe fn panel_pill(display: *mut Display, panel: Window, gc: GC, x: c_int,
+                     y: c_int, width: c_uint, height: c_uint, color: c_ulong) {
+    let radius = 7u32;
+    let diameter = radius * 2;
+    XSetForeground(display, gc, color);
+    XFillRectangle(display, panel, gc, x + radius as c_int, y,
+        width.saturating_sub(diameter), height);
+    XFillRectangle(display, panel, gc, x, y + radius as c_int,
+        width, height.saturating_sub(diameter));
+    for (cx, cy) in [(x, y), (x + width as c_int - diameter as c_int, y),
+        (x, y + height as c_int - diameter as c_int),
+        (x + width as c_int - diameter as c_int, y + height as c_int - diameter as c_int)] {
+        XFillArc(display, panel, gc, cx, cy, diameter, diameter, 0, 360 * 64);
+    }
+}
+
 unsafe fn draw_panel(display: *mut Display, panel: Window, gc: GC, width: c_int,
                      config: &Config, current: usize, tiled: bool) {
     XSetForeground(display, gc, config.panel_color as c_ulong);
     XFillRectangle(display, panel, gc, 0, 0, width.max(1) as c_uint, PANEL_H as c_uint);
     XSetForeground(display, gc, config.accent_color as c_ulong);
-    XFillRectangle(display, panel, gc, 0, 0, 4, PANEL_H as c_uint);
+    XFillRectangle(display, panel, gc, 0, PANEL_H - 2, width.max(1) as c_uint, 2);
     XSetForeground(display, gc, COLOR_TEXT);
-    let title = cstring("LEMON");
-    XDrawString(display, panel, gc, 16, 22, title.as_ptr(), 5);
-    XSetForeground(display, gc, COLOR_DIM);
-    for (label, x) in [("Terminal", 98), ("Files", 170), ("Web", 228), ("Calc", 280)] {
+    let title = cstring("LDE");
+    XDrawString(display, panel, gc, 18, 22, title.as_ptr(), 3);
+    XSetForeground(display, gc, COLOR_UNFOCUSED);
+    XFillRectangle(display, panel, gc, 76, 8, 1, 18);
+
+    for (label, x, w) in [("Terminal", 90, 73), ("Files", 164, 55), ("Web", 220, 55), ("Calc", 276, 50)] {
+        panel_pill(display, panel, gc, x, 4, w, 26, 0x2b3548);
+        XSetForeground(display, gc, COLOR_TEXT);
         let text = cstring(label);
-        XDrawString(display, panel, gc, x, 22, text.as_ptr(), label.len() as c_int);
+        XDrawString(display, panel, gc, x + 9, 22, text.as_ptr(), label.len() as c_int);
     }
-    XSetForeground(display, gc, config.accent_color as c_ulong);
-    XFillRectangle(display, panel, gc, 330, 4, 62, 26);
+    panel_pill(display, panel, gc, 330, 4, 62, 26, config.accent_color as c_ulong);
     XSetForeground(display, gc, config.panel_color as c_ulong);
     let apps = cstring("Apps");
-    XDrawString(display, panel, gc, 340, 22, apps.as_ptr(), 4);
-    XSetForeground(display, gc, COLOR_DIM);
+    XDrawString(display, panel, gc, 341, 22, apps.as_ptr(), 4);
+    panel_pill(display, panel, gc, 397, 4, 86, 26, 0x2b3548);
+    XSetForeground(display, gc, COLOR_TEXT);
     let settings = cstring("Settings");
-    XDrawString(display, panel, gc, 400, 22, settings.as_ptr(), 8);
+    XDrawString(display, panel, gc, 406, 22, settings.as_ptr(), 8);
 
     if width >= 900 {
         for i in 0..9 {
             let x = 510 + i as c_int * 24;
             if i == current {
-                XSetForeground(display, gc, config.accent_color as c_ulong);
-                XFillRectangle(display, panel, gc, x - 5, 4, 20, 26);
+                panel_pill(display, panel, gc, x - 7, 4, 22, 26, config.accent_color as c_ulong);
                 XSetForeground(display, gc, config.panel_color as c_ulong);
             } else { XSetForeground(display, gc, COLOR_DIM); }
             let label = cstring(&(i + 1).to_string());
             XDrawString(display, panel, gc, x, 22, label.as_ptr(), 1);
         }
     }
-    let mode = cstring(if tiled { "TILE" } else { "FLOAT" });
-    XSetForeground(display, gc, config.accent_color as c_ulong);
-    XDrawString(display, panel, gc, (width - 150).max(8), 22, mode.as_ptr(), 4 + if tiled { 0 } else { 1 });
-    let clock = chrono_like_clock();
-    let clock_c = cstring(&clock);
-    XSetForeground(display, gc, COLOR_TEXT);
-    XDrawString(display, panel, gc, (width - 76).max(8), 22, clock_c.as_ptr(), clock.len() as c_int);
+    if width >= 720 {
+        let mode = cstring(if tiled { "TILE" } else { "FLOAT" });
+        XSetForeground(display, gc, config.accent_color as c_ulong);
+        XDrawString(display, panel, gc, (width - 150).max(8), 22, mode.as_ptr(), 4 + if tiled { 0 } else { 1 });
+    }
+    if width >= 620 {
+        let clock = chrono_like_clock();
+        let clock_c = cstring(&clock);
+        XSetForeground(display, gc, COLOR_TEXT);
+        XDrawString(display, panel, gc, (width - 76).max(8), 22, clock_c.as_ptr(), clock.len() as c_int);
+    }
     XFlush(display);
 }
 fn chrono_like_clock() -> String {
@@ -410,7 +526,7 @@ unsafe fn toggle_layout(display: *mut Display, windows: &HashSet<Window>,
     }
 }
 unsafe fn switch_workspace(display: *mut Display, root: Window, panel: Window, gc: GC,
-                           config: &Config, windows: &HashSet<Window>,
+                           ewmh: &Ewmh, config: &Config, windows: &HashSet<Window>,
                            workspace_of: &HashMap<Window, usize>, current: &mut usize,
                            target: usize, tiled: &[bool; 9], width: c_int, height: c_int,
                            panel_top: bool, focused: &mut Window) {
@@ -420,6 +536,7 @@ unsafe fn switch_workspace(display: *mut Display, root: Window, panel: Window, g
         if workspace_of.get(window).copied() == Some(old) { XUnmapWindow(display, *window); }
     }
     *current = target;
+    set_ewmh_current_desktop(display, root, ewmh, target);
     for window in windows {
         if workspace_of.get(window).copied() == Some(target) { XMapWindow(display, *window); }
     }
@@ -432,6 +549,7 @@ unsafe fn switch_workspace(display: *mut Display, root: Window, panel: Window, g
         *focused = 0;
         XSetInputFocus(display, root, 1, 0);
     }
+    set_ewmh_active_window(display, root, ewmh, *focused);
     XRaiseWindow(display, panel);
     draw_panel(display, panel, gc, width, config, target, tiled[target]);
 }
@@ -494,7 +612,7 @@ fn main() {
         println!("LDE lemon {}", env!("CARGO_PKG_VERSION")); return;
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!("LDE — lightweight X11 desktop shell and tools\n\nUsage: lemon [--menu|--no-menu|--settings|--install|--launcher|--files [PATH]|--calculator]\n       lemon --help | --version | --config-path | --init-config\n\nWith no arguments in a terminal without DISPLAY, Lemon opens its interactive menu. If DISPLAY is set (including Termux/VNC), it starts the X11 desktop; use --menu to force the terminal menu.\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings, Super+C calculator, Super+M minimize, Super+Shift+M restore, Alt+Tab cycle, Super+T layout, Super+Q close, Super+Shift+Q quit, Super+1..9 workspaces. Alt+left/right-drag moves/resizes."); return;
+        println!("LDE — lightweight X11 desktop shell and tools\n\nUsage: lemon [--menu|--no-menu|--settings|--control-center|--install|--launcher|--files [PATH]|--calculator]\n       lemon --help | --version | --config-path | --init-config\n\nWith no arguments in a terminal without DISPLAY, Lemon opens its interactive menu. If DISPLAY is set (including Termux/VNC), it starts the X11 desktop; use --menu to force the terminal menu.\nShortcuts: Super+Enter terminal, Super+D launcher, Super+I settings, Super+O control center, Super+C calculator, Super+M minimize, Super+Shift+M restore, Alt+Tab cycle, Super+T layout, Super+Q close, Super+Shift+Q quit, Super+1..9 workspaces. Alt+left/right-drag moves/resizes."); return;
     }
     if args.iter().any(|a| a == "--config-path") { println!("{}", Config::path().display()); return; }
     if args.iter().any(|a| a == "--init-config") {
@@ -502,6 +620,10 @@ fn main() {
         return;
     }
     let display_is_set = std::env::var_os("DISPLAY").is_some();
+    if args.iter().any(|a| a == "--control-center") {
+        if !display_is_set || !native_apps::control_center() { terminal_ui::run_menu(); }
+        return;
+    }
     if args.iter().any(|a| a == "--settings") {
         if !display_is_set || !native_apps::settings() { terminal_ui::settings(); }
         return;
@@ -538,12 +660,13 @@ pub(crate) fn start_desktop() {
         }
         let screen = XDefaultScreen(display);
         let root = XDefaultRootWindow(display);
+        let ewmh = init_ewmh(display, root);
         let width = XDisplayWidth(display, screen);
         let height = XDisplayHeight(display, screen);
         XSelectInput(display, root, SUBSTRUCTURE_REDIRECT_MASK | SUBSTRUCTURE_NOTIFY_MASK | KEY_PRESS_MASK);
         if config.wallpaper.is_empty() { XSetWindowBackground(display, root, config.background_color as c_ulong); }
         XClearWindow(display, root);
-        for key in [XK_RETURN, XK_D, XK_I, XK_Q, XK_T, XK_M, XK_C, XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9] {
+        for key in [XK_RETURN, XK_D, XK_I, XK_O, XK_Q, XK_T, XK_M, XK_C, XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9] {
             grab(display, root, key, MOD4_MASK);
         }
         grab(display, root, XK_Q, MOD4_MASK | SHIFT_MASK);
@@ -588,9 +711,11 @@ pub(crate) fn start_desktop() {
                         minimized.retain(|window| *window != e.window);
                         windows.insert(e.window);
                         workspace_of.insert(e.window, current_workspace);
+                        set_ewmh_desktop(display, &ewmh, e.window, current_workspace);
                         XMapWindow(display, e.window);
                         XRaiseWindow(display, e.window);
                         focused = e.window;
+                        set_ewmh_active_window(display, root, &ewmh, focused);
                         XSetInputFocus(display, focused, 1, 0);
                         if tiled[current_workspace] { arrange_tiled(display, &windows, &workspace_of, current_workspace, width, height, panel_top); }
                         XRaiseWindow(display, panel);
@@ -598,14 +723,18 @@ pub(crate) fn start_desktop() {
                     }
                     let slot = next_slot % 7;
                     next_slot += 1;
-                    let margin = 24 + (slot as c_int * 28);
                     let area_y = if panel_top { PANEL_H } else { 0 };
-                    let client_w = (width - margin * 2).min(720).max(320) as c_uint;
-                    let client_h = (height - PANEL_H - margin * 2).min(560).max(240) as c_uint;
-                    let client_x = margin.min(width - client_w as c_int).max(0);
-                    let client_y = (area_y + margin).min(height - PANEL_H - client_h as c_int).max(area_y);
+                    let usable_h = (height - PANEL_H).max(1);
+                    let client_w = width.min(720).max(1) as c_uint;
+                    let client_h = usable_h.min(560).max(1) as c_uint;
+                    let cascade = slot as c_int * 24;
+                    let client_x = ((width - client_w as c_int) / 2 + cascade)
+                        .min(width - client_w as c_int).max(0);
+                    let client_y = area_y + ((usable_h - client_h as c_int) / 2 + cascade)
+                        .min(usable_h - client_h as c_int).max(0);
                     let initial = Geometry { x: client_x, y: client_y, width: client_w, height: client_h };
                     let drag_mask = (BUTTON_PRESS_MASK | POINTER_MOTION_MASK | BUTTON_RELEASE_MASK) as c_uint;
+                    // Observe client clicks passively; replay ordinary clicks and retain grabs only for Alt-drag.
                     XGrabButton(display, 1, ANY_MODIFIER, e.window, 0, drag_mask, 0, 1, 0, 0);
                     XGrabButton(display, 3, ANY_MODIFIER, e.window, 0, drag_mask, 0, 1, 0, 0);
                     XSetWindowBorderWidth(display, e.window, 2);
@@ -614,6 +743,7 @@ pub(crate) fn start_desktop() {
                     XMapWindow(display, e.window);
                     windows.insert(e.window);
                     workspace_of.insert(e.window, current_workspace);
+                    set_ewmh_desktop(display, &ewmh, e.window, current_workspace);
                     saved_geometry.insert(e.window, initial);
                     focused = e.window;
                     XSetInputFocus(display, focused, 1, 0);
@@ -643,6 +773,7 @@ pub(crate) fn start_desktop() {
                                 .map(|index| (index + 1) % visible.len()).unwrap_or(0);
                             if focused != 0 { XSetWindowBorder(display, focused, COLOR_UNFOCUSED); }
                             focused = visible[next];
+                            set_ewmh_active_window(display, root, &ewmh, focused);
                             XRaiseWindow(display, focused);
                             XSetWindowBorder(display, focused, config.accent_color as c_ulong);
                             XSetInputFocus(display, focused, 1, 0);
@@ -654,19 +785,22 @@ pub(crate) fn start_desktop() {
                     if e.keycode == keycode(display, XK_RETURN) { launch_terminal(&config); }
                     else if e.keycode == keycode(display, XK_D) { launch_menu(&config); }
                     else if e.keycode == keycode(display, XK_I) { open_settings(); }
+                    else if e.keycode == keycode(display, XK_O) { open_control_center(); }
                     else if e.keycode == keycode(display, XK_C) { launch_calculator(); }
                     else if e.keycode == keycode(display, XK_Q) && e.state & SHIFT_MASK != 0 {
                         XCloseDisplay(display); return;
                     } else if e.keycode == keycode(display, XK_Q) && focused != 0 {
-                        XKillClient(display, focused);
+                        request_close(display, focused);
                     } else if e.keycode == keycode(display, XK_M) && e.state & SHIFT_MASK != 0 {
                         while let Some(window) = minimized.pop() {
                             if workspace_of.contains_key(&window) {
                                 windows.insert(window);
                                 workspace_of.insert(window, current_workspace);
+                                set_ewmh_desktop(display, &ewmh, window, current_workspace);
                                 XMapWindow(display, window);
                                 XRaiseWindow(display, window);
                                 focused = window;
+                                set_ewmh_active_window(display, root, &ewmh, focused);
                                 XSetWindowBorder(display, focused, config.accent_color as c_ulong);
                                 XSetInputFocus(display, focused, 1, 0);
                                 if tiled[current_workspace] { arrange_tiled(display, &windows, &workspace_of, current_workspace, width, height, panel_top); }
@@ -682,11 +816,13 @@ pub(crate) fn start_desktop() {
                         minimized.push(hidden);
                         if let Some(next) = windows.iter().copied().find(|window| workspace_of.get(window).copied() == Some(current_workspace)) {
                             focused = next;
+                            set_ewmh_active_window(display, root, &ewmh, focused);
                             XRaiseWindow(display, focused);
                             XSetWindowBorder(display, focused, config.accent_color as c_ulong);
                             XSetInputFocus(display, focused, 1, 0);
                         } else {
                             focused = 0;
+                            set_ewmh_active_window(display, root, &ewmh, focused);
                             XSetInputFocus(display, root, 1, 0);
                         }
                         if tiled[current_workspace] { arrange_tiled(display, &windows, &workspace_of, current_workspace, width, height, panel_top); }
@@ -698,9 +834,49 @@ pub(crate) fn start_desktop() {
                         let index = [XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9]
                             .iter().position(|ks| e.keycode == keycode(display, *ks));
                         if let Some(target) = index {
-                            switch_workspace(display, root, panel, gc, &config, &windows, &workspace_of,
+                            switch_workspace(display, root, panel, gc, &ewmh, &config, &windows, &workspace_of,
                                 &mut current_workspace, target, &tiled, width, height, panel_top, &mut focused);
                         }
+                    }
+                }
+                CLIENT_MESSAGE => {
+                    let message = event.client_message;
+                    if message.message_type == ewmh.current_desktop && message.window == root {
+                        let target = message.data.l[0].max(0) as usize;
+                        if target < 9 {
+                            switch_workspace(display, root, panel, gc, &ewmh, &config, &windows, &workspace_of,
+                                &mut current_workspace, target, &tiled, width, height, panel_top, &mut focused);
+                        }
+                    } else if message.message_type == ewmh.active_window && windows.contains(&message.window) {
+                        if let Some(target) = workspace_of.get(&message.window).copied() {
+                            if target != current_workspace {
+                                switch_workspace(display, root, panel, gc, &ewmh, &config, &windows, &workspace_of,
+                                    &mut current_workspace, target, &tiled, width, height, panel_top, &mut focused);
+                            }
+                            if focused != 0 { XSetWindowBorder(display, focused, COLOR_UNFOCUSED); }
+                            focused = message.window;
+                            set_ewmh_active_window(display, root, &ewmh, focused);
+                            XRaiseWindow(display, focused);
+                            XSetWindowBorder(display, focused, config.accent_color as c_ulong);
+                            XSetInputFocus(display, focused, 1, 0);
+                            XRaiseWindow(display, panel);
+                        }
+                    } else if message.message_type == ewmh.window_desktop && windows.contains(&message.window) {
+                        let target = message.data.l[0].max(0) as usize;
+                        if target < 9 {
+                            workspace_of.insert(message.window, target);
+                            set_ewmh_desktop(display, &ewmh, message.window, target);
+                            if target == current_workspace { XMapWindow(display, message.window); }
+                            else { XUnmapWindow(display, message.window); }
+                            if focused == message.window && target != current_workspace {
+                                focused = 0;
+                                set_ewmh_active_window(display, root, &ewmh, 0);
+                                XSetInputFocus(display, root, 1, 0);
+                            }
+                            if tiled[current_workspace] { arrange_tiled(display, &windows, &workspace_of, current_workspace, width, height, panel_top); }
+                        }
+                    } else if message.message_type == ewmh.close_window && windows.contains(&message.window) {
+                        request_close(display, message.window);
                     }
                 }
                 BUTTON_PRESS => {
@@ -708,7 +884,7 @@ pub(crate) fn start_desktop() {
                     if e.window == panel {
                         if width >= 900 && (510..=714).contains(&e.x) {
                             let target = ((e.x - 510) / 24).clamp(0, 8) as usize;
-                            switch_workspace(display, root, panel, gc, &config, &windows, &workspace_of,
+                            switch_workspace(display, root, panel, gc, &ewmh, &config, &windows, &workspace_of,
                                 &mut current_workspace, target, &tiled, width, height, panel_top, &mut focused);
                         } else {
                             match e.x {
@@ -727,14 +903,17 @@ pub(crate) fn start_desktop() {
                             if tiled[current_workspace] {
                                 toggle_layout(display, &windows, &workspace_of, current_workspace, &mut tiled,
                                     &mut saved_geometry, width, height, panel_top);
+                                draw_panel(display, panel, gc, width, &config, current_workspace, tiled[current_workspace]);
                             }
                             focused = e.window;
+                            set_ewmh_active_window(display, root, &ewmh, focused);
                             XSetWindowBorder(display, focused, config.accent_color as c_ulong);
                             XAllowEvents(display, ASYNC_POINTER, e.time);
                             drag_window(display, panel, focused, e.button, e.x_root, e.y_root);
                         } else {
                             if focused != 0 { XSetWindowBorder(display, focused, COLOR_UNFOCUSED); }
                             focused = e.window;
+                            set_ewmh_active_window(display, root, &ewmh, focused);
                             XRaiseWindow(display, focused);
                             XSetWindowBorder(display, focused, config.accent_color as c_ulong);
                             XSetInputFocus(display, focused, 1, 0);
@@ -751,8 +930,8 @@ pub(crate) fn start_desktop() {
                     workspace_of.remove(&win); saved_geometry.remove(&win);
                     if focused == win {
                         if let Some(next) = windows.iter().find(|&&w| workspace_of.get(&w).copied() == Some(current_workspace)) {
-                            focused = *next; XSetInputFocus(display, focused, 1, 0);
-                        } else { focused = 0; XSetInputFocus(display, root, 1, 0); }
+                            focused = *next; set_ewmh_active_window(display, root, &ewmh, focused); XSetInputFocus(display, focused, 1, 0);
+                        } else { focused = 0; set_ewmh_active_window(display, root, &ewmh, focused); XSetInputFocus(display, root, 1, 0); }
                         if tiled[current_workspace] { arrange_tiled(display, &windows, &workspace_of, current_workspace, width, height, panel_top); }
                     }
                 }

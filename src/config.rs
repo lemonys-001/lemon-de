@@ -28,9 +28,9 @@ impl Default for Config {
             panel_position: "top".into(),
             layout: "floating".into(),
             autostart: Vec::new(),
-            panel_color: 0x222534,
-            accent_color: 0xffb84d,
-            background_color: 0x171923,
+            panel_color: 0x172033,
+            accent_color: 0x60a5fa,
+            background_color: 0x111827,
         }
     }
 }
@@ -122,10 +122,10 @@ wallpaper =
 panel_position = top
 layout = floating
 
-# Hex RGB colors (examples: 0x222534 or #ffb84d).
-panel_color = 0x222534
-accent_color = 0xffb84d
-background_color = 0x171923
+# Hex RGB colors (examples: 0x172033 or #60a5fa).
+panel_color = 0x172033
+accent_color = 0x60a5fa
+background_color = 0x111827
 
 # Optional services are separate programs, keeping the LDE core small.
 # Add one command per line, for example:
@@ -140,8 +140,8 @@ mod tests {
 
     #[test]
     fn parses_rgb_forms_and_rejects_invalid_values() {
-        assert_eq!(parse_color("0xffb84d"), Some(0xffb84d));
-        assert_eq!(parse_color("#171923"), Some(0x171923));
+        assert_eq!(parse_color("0x60a5fa"), Some(0x60a5fa));
+        assert_eq!(parse_color("#111827"), Some(0x111827));
         assert_eq!(parse_color("ffffff"), Some(0xffffff));
         assert_eq!(parse_color("#gggggg"), None);
         assert_eq!(parse_color("0x1000000"), None);

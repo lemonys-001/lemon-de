@@ -126,7 +126,7 @@ pub fn settings() {
 }
 
 fn edit_color(config: &mut Config, which: &str) {
-    let value = read_choice("RGB color (six hex digits, e.g. #ffb84d): ");
+    let value = read_choice("RGB color (six hex digits, e.g. #60a5fa): ");
     let digits = value.trim().trim_start_matches('#').trim_start_matches("0x");
     match u64::from_str_radix(digits, 16).ok().filter(|color| *color <= 0xffffff) {
         Some(color) => {

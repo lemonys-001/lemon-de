@@ -22,7 +22,7 @@ jobs:
         with:
           components: rustfmt
       - name: Install X11 development files
-        run: sudo apt-get update && sudo apt-get install -y libx11-dev xvfb xauth xdotool
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev xvfb xauth xdotool x11-utils
       - name: Check
         shell: bash
         run: |
@@ -45,4 +45,12 @@ jobs:
           ./target/release/lemon --version
           bash -n install.sh tests/install-smoke.sh tests/terminal-ui-smoke.sh
           tests/install-smoke.sh
-          tests/terminal-ui-smoke.sh
+          set +e
+          bash tests/terminal-ui-smoke.sh > "$RUNNER_TEMP/terminal-smoke.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/terminal-smoke.log"
+          if [[ $status -ne 0 ]]; then
+            trace=$(tail -n 40 "$RUNNER_TEMP/terminal-smoke.log" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/:/%3A/g; s/,/%2C/g')
+            echo "::error title=Terminal smoke trace::$trace"
+            exit "$status"
+          fi

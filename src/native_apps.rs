@@ -19,6 +19,7 @@ type Window=c_ulong; type GC=*mut c_void;
     fn XCreateGC(display:*mut Display,drawable:Window,mask:c_ulong,values:*mut c_void)->GC;
     fn XSetForeground(display:*mut Display,gc:GC,foreground:c_ulong)->c_int; fn XSetWindowBackground(display:*mut Display,window:Window,pixel:c_ulong)->c_int;
     fn XClearWindow(display:*mut Display,window:Window)->c_int; fn XFillRectangle(display:*mut Display,drawable:Window,gc:GC,x:c_int,y:c_int,width:c_uint,height:c_uint)->c_int;
+    fn XFillArc(display:*mut Display,drawable:Window,gc:GC,x:c_int,y:c_int,width:c_uint,height:c_uint,angle1:c_int,angle2:c_int)->c_int;
     fn XDrawString(display:*mut Display,drawable:Window,gc:GC,x:c_int,y:c_int,string:*const c_char,length:c_int)->c_int;
     fn XNextEvent(display:*mut Display,event:*mut XEvent)->c_int;
     fn XLookupString(event:*mut XKeyEvent,buffer:*mut c_char,bytes:c_int,keysym:*mut c_ulong,compose:*mut c_void)->c_int;
@@ -26,20 +27,21 @@ type Window=c_ulong; type GC=*mut c_void;
 }
 const KEY:c_int=2; const BUTTON:c_int=4; const EXPOSE:c_int=12;
 const KEY_MASK:c_long=1; const BUTTON_MASK:c_long=1<<2; const EXPOSE_MASK:c_long=1<<15;
-const BACKSPACE:c_ulong=0xff08; const TAB:c_ulong=0xff09; const RETURN:c_ulong=0xff0d; const KEY_S:c_ulong=0x73; const ESC:c_ulong=0xff1b; const UP:c_ulong=0xff52; const DOWN:c_ulong=0xff54;
+const BACKSPACE:c_ulong=0xff08; const TAB:c_ulong=0xff09; const RETURN:c_ulong=0xff0d; const KEY_S:c_ulong=0x73; const ESC:c_ulong=0xff1b; const LEFT:c_ulong=0xff51; const UP:c_ulong=0xff52; const RIGHT:c_ulong=0xff53; const DOWN:c_ulong=0xff54;
 const CTRL:c_uint=1<<2; const W:c_uint=720; const H:c_uint=560; const ROW:c_int=132; const RH:c_int=25;
-const BG:c_ulong=0x171923; const PANEL:c_ulong=0x25293a; const TEXT:c_ulong=0xf4f1e8; const MUTED:c_ulong=0xa8adbf; const ACCENT:c_ulong=0xffb84d; const HILITE:c_ulong=0x383343;
+const BG:c_ulong=0x111827; const PANEL:c_ulong=0x1f2937; const TEXT:c_ulong=0xf8fafc; const MUTED:c_ulong=0x9ca3af; const ACCENT:c_ulong=0x60a5fa; const HILITE:c_ulong=0x263b5d; const BORDER:c_ulong=0x334155;
 fn cs(s:&str)->CString { CString::new(s.replace('\0'," ")).unwrap_or_else(|_|CString::new(" ").unwrap()) }
 struct Ui { d:*mut Display,w:Window,g:GC }
 impl Ui {
     fn open(title:&str)->Option<Self>{ unsafe { let d=XOpenDisplay(ptr::null()); if d.is_null(){return None} let w=XCreateSimpleWindow(d,XDefaultRootWindow(d),80,60,W,H,1,ACCENT,BG); if w==0{XCloseDisplay(d);return None} XStoreName(d,w,cs(title).as_ptr()); XSetWindowBackground(d,w,BG); XSelectInput(d,w,KEY_MASK|BUTTON_MASK|EXPOSE_MASK); let g=XCreateGC(d,w,0,ptr::null_mut()); if g.is_null(){XDestroyWindow(d,w);XCloseDisplay(d);return None} XMapRaised(d,w); XFlush(d); Some(Self{d,w,g}) } }
     fn fill(&self,x:c_int,y:c_int,w:c_uint,h:c_uint,color:c_ulong){unsafe{XSetForeground(self.d,self.g,color);XFillRectangle(self.d,self.w,self.g,x,y,w,h);}}
+    fn round(&self,x:c_int,y:c_int,w:c_uint,h:c_uint,color:c_ulong,r:c_uint){unsafe{XSetForeground(self.d,self.g,color);let d=(r*2).min(w).min(h);if d<2{XFillRectangle(self.d,self.w,self.g,x,y,w,h);return}XFillRectangle(self.d,self.w,self.g,x+(d/2)as c_int,y,w-d,h);XFillRectangle(self.d,self.w,self.g,x,y+(d/2)as c_int,w,h-d);for (ax,ay) in [(x,y),(x+w as c_int-d as c_int,y),(x,y+h as c_int-d as c_int),(x+w as c_int-d as c_int,y+h as c_int-d as c_int)]{XFillArc(self.d,self.w,self.g,ax,ay,d,d,0,360*64);}}}
     fn text(&self,x:c_int,y:c_int,s:&str,color:c_ulong){let s=cs(s);unsafe{XSetForeground(self.d,self.g,color);XDrawString(self.d,self.w,self.g,x,y,s.as_ptr(),s.as_bytes().len() as c_int);}}
     fn clear(&self){unsafe{XClearWindow(self.d,self.w);}}
     fn event(&self)->XEvent{let mut e:XEvent=unsafe{std::mem::zeroed()};unsafe{XNextEvent(self.d,&mut e);}e}
     fn close(self){unsafe{XFreeGC(self.d,self.g);XDestroyWindow(self.d,self.w);XCloseDisplay(self.d);}}
 }
-fn shell(ui:&Ui,title:&str,subtitle:&str,status:&str){ui.clear();ui.fill(0,0,W,78,PANEL);ui.fill(0,0,5,H,ACCENT);ui.text(24,34,title,TEXT);ui.text(24,58,subtitle,MUTED);ui.text(W as c_int-86,34,"[ close ]",ACCENT);ui.fill(16,510,W-32,1,PANEL);ui.text(24,540,status,MUTED);}
+fn shell(ui:&Ui,title:&str,subtitle:&str,status:&str){ui.clear();ui.fill(0,0,W,78,PANEL);ui.fill(0,77,W,1,BORDER);ui.fill(0,0,4,H,ACCENT);ui.text(24,34,title,TEXT);ui.text(24,58,subtitle,MUTED);ui.round(W as c_int-92,10,70,34,HILITE,9);ui.text(W as c_int-70,33,"close",ACCENT);ui.fill(20,510,W-40,1,BORDER);ui.text(24,540,status,MUTED);}
 fn key(e:&mut XKeyEvent)->(c_ulong,String){let mut buf=[0 as c_char;16];let mut sym=0;let n=unsafe{XLookupString(e,buf.as_mut_ptr(),buf.len() as c_int,&mut sym,ptr::null_mut())};(sym,buf[..n.max(0) as usize].iter().map(|x|*x as u8 as char).collect())}
 fn close_click(b:&XButtonEvent)->bool{b.x>=W as c_int-92&&b.y<76}
 fn spawn_isolated(command:&mut Command)->std::io::Result<std::process::Child>{
@@ -48,7 +50,7 @@ fn spawn_isolated(command:&mut Command)->std::io::Result<std::process::Child>{
 }
 fn launch(name:&str)->Result<(),String>{let mut command=Command::new(name);command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());spawn_isolated(&mut command).map(|_|()).map_err(|e|format!("Cannot launch {name}: {e}"))}
 fn executables()->Vec<String>{let mut set=BTreeSet::new();for dir in env::var_os("PATH").unwrap_or_default().to_string_lossy().split(':'){if let Ok(es)=fs::read_dir(dir){for e in es.flatten(){if let Ok(m)=e.metadata(){#[cfg(unix)] let ok={use std::os::unix::fs::PermissionsExt;m.is_file()&&m.permissions().mode()&0o111!=0};#[cfg(not(unix))]let ok=m.is_file();if ok{if let Some(n)=e.file_name().to_str(){set.insert(n.to_owned());}}}}}}set.into_iter().collect()}
-pub fn launcher()->bool{let Some(ui)=Ui::open("Lemon Launcher")else{return false};let apps=executables();let(mut query,mut selected,mut scroll)=(String::new(),0usize,0usize);let mut status="Type to search · ↑/↓ move · Enter launch · Esc close".to_owned();loop{let ids:Vec<usize>=apps.iter().enumerate().filter(|(_,x)|x.to_lowercase().contains(&query.to_lowercase())).map(|(i,_)|i).collect();selected=selected.min(ids.len().saturating_sub(1));shell(&ui,"Lemon Launcher","Search commands on PATH",&status);ui.fill(22,91,W-44,27,PANEL);ui.text(32,110,&format!("› {query}"),TEXT);if selected<scroll{scroll=selected}else if selected>=scroll+14{scroll=selected.saturating_sub(13)}for(row,i)in ids.iter().enumerate().skip(scroll).take(14){let y=ROW+(row-scroll)as c_int*RH;if row==selected{ui.fill(22,y-17,W-44,22,HILITE)}ui.text(34,y,&apps[*i],if row==selected{ACCENT}else{TEXT})}ui.text(545,110,&format!("{} matches",ids.len()),MUTED);unsafe{XFlush(ui.d);}let mut e=ui.event();match unsafe{e.type_}{EXPOSE=>continue,KEY=>{let mut k=unsafe{e.key};let(s,c)=key(&mut k);if s==ESC{break}else if s==UP{selected=selected.saturating_sub(1)}else if s==DOWN{selected=(selected+1).min(ids.len().saturating_sub(1))}else if s==BACKSPACE{query.pop();selected=0;scroll=0}else if s==RETURN{if let Some(i)=ids.get(selected){match launch(&apps[*i]){Ok(())=>break,Err(x)=>status=x}}}else if !c.is_empty()&&c.chars().all(|x|!x.is_control()){query.push_str(&c);selected=0;scroll=0}},BUTTON=>{let b=unsafe{e.button};if close_click(&b){break}if b.y>=ROW-17&&b.y<ROW+14*RH{let i=((b.y-(ROW-17))/RH)as usize+scroll;if let Some(j)=ids.get(i){match launch(&apps[*j]){Ok(())=>break,Err(x)=>status=x}}}},_=>{}}}ui.close();true}
+pub fn launcher()->bool{let Some(ui)=Ui::open("Lemon Launcher")else{return false};let apps=executables();let(mut query,mut selected,mut scroll)=(String::new(),0usize,0usize);let mut status="Type to search · ↑/↓ move · Enter launch · Esc close".to_owned();loop{let ids:Vec<usize>=apps.iter().enumerate().filter(|(_,x)|x.to_lowercase().contains(&query.to_lowercase())).map(|(i,_)|i).collect();selected=selected.min(ids.len().saturating_sub(1));shell(&ui,"Lemon Launcher","Search commands on PATH",&status);ui.round(22,91,W-44,30,PANEL,8);ui.text(32,110,&format!("› {query}"),TEXT);if selected<scroll{scroll=selected}else if selected>=scroll+14{scroll=selected.saturating_sub(13)}for(row,i)in ids.iter().enumerate().skip(scroll).take(14){let y=ROW+(row-scroll)as c_int*RH;if row==selected{ui.round(22,y-17,W-44,23,HILITE,6)}ui.text(34,y,&apps[*i],if row==selected{ACCENT}else{TEXT})}ui.text(545,110,&format!("{} matches",ids.len()),MUTED);unsafe{XFlush(ui.d);}let mut e=ui.event();match unsafe{e.type_}{EXPOSE=>continue,KEY=>{let mut k=unsafe{e.key};let(s,c)=key(&mut k);if s==ESC{break}else if s==UP{selected=selected.saturating_sub(1)}else if s==DOWN{selected=(selected+1).min(ids.len().saturating_sub(1))}else if s==BACKSPACE{query.pop();selected=0;scroll=0}else if s==RETURN{if let Some(i)=ids.get(selected){match launch(&apps[*i]){Ok(())=>break,Err(x)=>status=x}}}else if !c.is_empty()&&c.chars().all(|x|!x.is_control()){query.push_str(&c);selected=0;scroll=0}},BUTTON=>{let b=unsafe{e.button};if close_click(&b){break}if b.y>=ROW-17&&b.y<ROW+14*RH{let i=((b.y-(ROW-17))/RH)as usize+scroll;if let Some(j)=ids.get(i){match launch(&apps[*j]){Ok(())=>break,Err(x)=>status=x}}}},_=>{}}}ui.close();true}
 fn entries(dir:&Path)->Vec<PathBuf>{let mut v=fs::read_dir(dir).ok().into_iter().flatten().filter_map(Result::ok).map(|e|e.path()).collect::<Vec<_>>();v.sort_by_key(|p|(!p.is_dir(),p.file_name().map(|x|x.to_os_string()).unwrap_or_default()));v}
 fn open_path(path:&Path,cfg:&Config)->Result<(),String>{
     if !cfg.file_manager.trim().is_empty(){
@@ -61,7 +63,94 @@ fn open_path(path:&Path,cfg:&Config)->Result<(),String>{
     }
     Err("Install xdg-open or set file_manager in Lemon Settings.".into())
 }
-pub fn file_browser()->bool{let mut dir=env::args_os().nth(2).map(PathBuf::from).unwrap_or_else(||env::current_dir().unwrap_or_else(|_|PathBuf::from(".")));if dir.is_file(){dir=dir.parent().unwrap_or(Path::new(".")).to_path_buf()}let Some(ui)=Ui::open("Lemon Files")else{return false};let cfg=Config::load();let(mut sel,mut scroll)=(0usize,0usize);let mut status="Enter/click open · Backspace parent · Esc close".to_owned();loop{let list=entries(&dir);sel=sel.min(list.len().saturating_sub(1));shell(&ui,"Lemon Files",&dir.to_string_lossy(),&status);if sel<scroll{scroll=sel}else if sel>=scroll+14{scroll=sel.saturating_sub(13)}for(row,p)in list.iter().enumerate().skip(scroll).take(14){let y=ROW+(row-scroll)as c_int*RH;if row==sel{ui.fill(22,y-17,W-44,22,HILITE)}let n=p.file_name().unwrap_or_else(||std::ffi::OsStr::new(".")).to_string_lossy();ui.text(34,y,&format!("{}{}",n.chars().take(84).collect::<String>(),if p.is_dir(){"/"}else{""}),if row==sel{ACCENT}else{TEXT})}unsafe{XFlush(ui.d);}let mut e=ui.event();match unsafe{e.type_}{EXPOSE=>continue,KEY=>{let mut k=unsafe{e.key};let(s,_)=key(&mut k);if s==ESC{break}else if s==UP{sel=sel.saturating_sub(1)}else if s==DOWN{sel=(sel+1).min(list.len().saturating_sub(1))}else if s==BACKSPACE{if let Some(p)=dir.parent(){dir=p.to_path_buf();sel=0;scroll=0}}else if s==RETURN{if let Some(p)=list.get(sel){if p.is_dir(){dir=p.clone();sel=0;scroll=0}else if let Err(x)=open_path(p,&cfg){status=x}}}},BUTTON=>{let b=unsafe{e.button};if close_click(&b){break}if b.y>=ROW-17&&b.y<ROW+14*RH{let i=((b.y-(ROW-17))/RH)as usize+scroll;if let Some(p)=list.get(i){if p.is_dir(){dir=p.clone();sel=0;scroll=0}else if let Err(x)=open_path(p,&cfg){status=x}}}else if b.y<78&&b.x<130{if let Some(p)=dir.parent(){dir=p.to_path_buf();sel=0;scroll=0}}},_=>{}}}ui.close();true}
+pub fn file_browser()->bool{let mut dir=env::args_os().nth(2).map(PathBuf::from).unwrap_or_else(||env::current_dir().unwrap_or_else(|_|PathBuf::from(".")));if dir.is_file(){dir=dir.parent().unwrap_or(Path::new(".")).to_path_buf()}let Some(ui)=Ui::open("Lemon Files")else{return false};let cfg=Config::load();let(mut sel,mut scroll)=(0usize,0usize);let mut status="Enter/click open · Backspace parent · Esc close".to_owned();loop{let list=entries(&dir);sel=sel.min(list.len().saturating_sub(1));shell(&ui,"Lemon Files",&dir.to_string_lossy(),&status);if sel<scroll{scroll=sel}else if sel>=scroll+14{scroll=sel.saturating_sub(13)}for(row,p)in list.iter().enumerate().skip(scroll).take(14){let y=ROW+(row-scroll)as c_int*RH;if row==sel{ui.round(22,y-17,W-44,23,HILITE,6)}let n=p.file_name().unwrap_or_else(||std::ffi::OsStr::new(".")).to_string_lossy();ui.text(34,y,&format!("{}{}",n.chars().take(84).collect::<String>(),if p.is_dir(){"/"}else{""}),if row==sel{ACCENT}else{TEXT})}unsafe{XFlush(ui.d);}let mut e=ui.event();match unsafe{e.type_}{EXPOSE=>continue,KEY=>{let mut k=unsafe{e.key};let(s,_)=key(&mut k);if s==ESC{break}else if s==UP{sel=sel.saturating_sub(1)}else if s==DOWN{sel=(sel+1).min(list.len().saturating_sub(1))}else if s==BACKSPACE{if let Some(p)=dir.parent(){dir=p.to_path_buf();sel=0;scroll=0}}else if s==RETURN{if let Some(p)=list.get(sel){if p.is_dir(){dir=p.clone();sel=0;scroll=0}else if let Err(x)=open_path(p,&cfg){status=x}}}},BUTTON=>{let b=unsafe{e.button};if close_click(&b){break}if b.y>=ROW-17&&b.y<ROW+14*RH{let i=((b.y-(ROW-17))/RH)as usize+scroll;if let Some(p)=list.get(i){if p.is_dir(){dir=p.clone();sel=0;scroll=0}else if let Err(x)=open_path(p,&cfg){status=x}}}else if b.y<78&&b.x<130{if let Some(p)=dir.parent(){dir=p.to_path_buf();sel=0;scroll=0}}},_=>{}}}ui.close();true}
+
+#[derive(Clone,Copy)]
+struct SystemAction {
+    title: &'static str,
+    detail: &'static str,
+    commands: &'static [(&'static str, &'static [&'static str])],
+}
+const SYSTEM_ACTIONS: &[SystemAction] = &[
+    SystemAction { title: "Sound", detail: "Mixer and audio devices", commands: &[("pavucontrol", &[]), ("mate-volume-control", &[]), ("xfce4-mixer", &[])] },
+    SystemAction { title: "Network", detail: "Wi-Fi and connection settings", commands: &[("nm-connection-editor", &[]), ("connman-gtk", &[])] },
+    SystemAction { title: "Bluetooth", detail: "Pair and manage devices", commands: &[("blueman-manager", &[])] },
+    SystemAction { title: "Displays", detail: "Resolution and monitor layout", commands: &[("arandr", &[]), ("lxrandr", &[]), ("wdisplays", &[])] },
+    SystemAction { title: "Appearance", detail: "Themes, fonts, and icons", commands: &[("lxappearance", &[]), ("xfce4-appearance-settings", &[]), ("mate-appearance-properties", &[])] },
+    SystemAction { title: "Power", detail: "Battery and power preferences", commands: &[("xfce4-power-manager-settings", &[]), ("mate-power-preferences", &[])] },
+    SystemAction { title: "Notifications", detail: "Notification service and settings", commands: &[("xfce4-notifyd-config", &[]), ("dunst", &[])] },
+    SystemAction { title: "Clipboard", detail: "Clipboard history and manager", commands: &[("copyq", &[]), ("clipit", &[]), ("xfce4-clipman", &[])] },
+    SystemAction { title: "Accessibility", detail: "Screen reader and on-screen keyboard", commands: &[("orca", &[]), ("onboard", &[]), ("magnus", &[])] },
+    SystemAction { title: "Desktop icons", detail: "Optional desktop icon layer", commands: &[("pcmanfm", &["--desktop"]), ("nemo-desktop", &[]), ("xfdesktop", &[])] },
+    SystemAction { title: "Lock screen", detail: "Lock this graphical session", commands: &[("xflock4", &[]), ("loginctl", &["lock-session"]), ("xscreensaver-command", &["-lock"]), ("i3lock", &[])] },
+    SystemAction { title: "Log out", detail: "Open your session logout dialog", commands: &[("xfce4-session-logout", &["--logout"]), ("mate-session-save", &["--logout-dialog"]), ("lxsession-logout", &[])] },
+    SystemAction { title: "Compositor effects", detail: "Optional shadows and transparency", commands: &[("picom", &[]), ("xcompmgr", &[])] },
+];
+
+fn launch_system_action(action: &SystemAction, installed: &[String]) -> Result<String, String> {
+    for (program, args) in action.commands {
+        if !installed.iter().any(|item| item.as_str() == *program) { continue; }
+        let mut command = Command::new(*program);
+        command.args(*args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        if spawn_isolated(&mut command).is_ok() { return Ok(format!("Opening {} with {program}", action.title)); }
+    }
+    Err(format!("No compatible {} tool found; install one from the optional desktop packages", action.title.to_lowercase()))
+}
+
+pub fn control_center() -> bool {
+    let Some(ui) = Ui::open("Lemon Control Center") else { return false };
+    let installed = executables();
+    let mut selected = 0usize;
+    let mut status = "Optional system tools · install only the features you need".to_owned();
+    loop {
+        shell(&ui, "Control Center", "Sound · network · devices · session", &status);
+        for (index, action) in SYSTEM_ACTIONS.iter().enumerate() {
+            let col = index % 2;
+            let row = index / 2;
+            let x = 22 + col as c_int * 338;
+            let y = 102 + row as c_int * 56;
+            let available = action.commands.iter().any(|(program, _)| installed.iter().any(|item| item.as_str() == *program));
+            let color = if index == selected { HILITE } else { PANEL };
+            ui.round(x, y, 320, 50, color, 9);
+            ui.text(x + 14, y + 20, action.title, if available { TEXT } else { MUTED });
+            ui.text(x + 14, y + 38, action.detail, MUTED);
+            if !available { ui.text(x + 249, y + 20, "missing", ACCENT); }
+        }
+        unsafe { XFlush(ui.d); }
+        let mut event = ui.event();
+        match unsafe { event.type_ } {
+            EXPOSE => continue,
+            KEY => {
+                let mut key_event = unsafe { event.key };
+                let (symbol, _) = key(&mut key_event);
+                if symbol == ESC { break; }
+                if symbol == UP { selected = selected.saturating_sub(2); }
+                else if symbol == DOWN { selected = (selected + 2).min(SYSTEM_ACTIONS.len() - 1); }
+                else if symbol == LEFT { selected = selected.saturating_sub(1); }
+                else if symbol == RIGHT { selected = (selected + 1).min(SYSTEM_ACTIONS.len() - 1); }
+                else if symbol == RETURN {
+                    status = match launch_system_action(&SYSTEM_ACTIONS[selected], &installed) { Ok(message) | Err(message) => message };
+                }
+            }
+            BUTTON => {
+                let button = unsafe { event.button };
+                if close_click(&button) { break; }
+                if button.y >= 102 && button.y < 494 && ((22..342).contains(&button.x) || (360..680).contains(&button.x)) {
+                    let col = if button.x >= 360 { 1 } else { 0 };
+                    let row = ((button.y - 102) / 56) as usize;
+                    let index = row * 2 + col;
+                    if index < SYSTEM_ACTIONS.len() {
+                        selected = index;
+                        status = match launch_system_action(&SYSTEM_ACTIONS[index], &installed) { Ok(message) | Err(message) => message };
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    ui.close();
+    true
+}
 
 #[derive(Clone,Copy)]enum Field{Terminal,Launcher,Files,Browser,Wallpaper,Panel,Layout,PanelColor,Accent,Background,Autostart}
 impl Field{
@@ -105,7 +194,7 @@ pub fn settings() -> bool {
         shell(&ui, "Lemon Settings", "Desktop · apps · wallpaper", &status);
         for (index, field) in fields.iter().enumerate() {
             let y = ROW + index as c_int * 34;
-            if index == selected { ui.fill(22, y - 17, W - 44, 29, HILITE); }
+            if index == selected { ui.round(22, y - 17, W - 44, 29, HILITE, 8); }
             ui.text(34, y, field.label(), if index == selected { ACCENT } else { TEXT });
             let value = if editing && index == selected { draft.clone() } else { field.value(&config) };
             ui.text(280, y, &value.chars().take(54).collect::<String>(), MUTED);
@@ -160,6 +249,6 @@ impl<'a> Parser<'a>{
  fn number(&mut self)->Result<f64,String>{self.ws();let start=self.i;let mut dot=false;while let Some(b)=self.b.get(self.i){if b.is_ascii_digit(){self.i+=1}else if *b==b'.'&&!dot{dot=true;self.i+=1}else{break}}if start==self.i{return Err("Expected a number".into())}std::str::from_utf8(&self.b[start..self.i]).ok().and_then(|s|s.parse::<f64>().ok()).filter(|n|n.is_finite()).ok_or_else(||"Invalid number".into())}
 }
 pub fn evaluate(s:&str)->Result<f64,String>{let mut p=Parser{b:s.as_bytes(),i:0};let n=p.expr()?;p.ws();if p.i!=p.b.len(){return Err("Unsupported character/operator".into())}if n.is_finite(){Ok(n)}else{Err("Result outside supported range".into())}}
-pub fn calculator()->bool{let Some(ui)=Ui::open("Lemon Calculator")else{return false};let mut expr=String::new();let mut result=String::new();let mut status="Type expression · Enter = result".to_owned();let keys=["7","8","9","/","C","4","5","6","*","(","1","2","3","-",")","0",".","=","+","⌫"];loop{shell(&ui,"Lemon Calculator","Basic arithmetic · keyboard or mouse",&status);ui.fill(22,92,W-44,45,PANEL);ui.text(34,121,if expr.is_empty(){"0"}else{&expr},TEXT);if !result.is_empty(){ui.text(34,153,&result,ACCENT)}for(i,k)in keys.iter().enumerate(){let x=32+(i%5)as c_int*132;let y=178+(i/5)as c_int*72;ui.fill(x,y,112,56,if *k=="="{HILITE}else{PANEL});ui.text(x+48,y+35,k,if *k=="="{ACCENT}else{TEXT})}unsafe{XFlush(ui.d);}let mut e=ui.event();match unsafe{e.type_}{EXPOSE=>continue,KEY=>{let mut k=unsafe{e.key};let(s,ch)=key(&mut k);if s==ESC{break}else if s==BACKSPACE{expr.pop();result.clear()}else if s==RETURN{match evaluate(&expr){Ok(n)=>result=n.to_string(),Err(x)=>status=x}}else if !ch.is_empty()&&ch.chars().all(|c|c.is_ascii_digit()||".+-*/()".contains(c)){expr.push_str(&ch);result.clear()}},BUTTON=>{let b=unsafe{e.button};if close_click(&b){break}if(178..=466).contains(&b.y)&&(32..=692).contains(&b.x){let i=((b.y-178)/72)as usize*5+((b.x-32)/132)as usize;if let Some(k)=keys.get(i){match *k{"C"=>{expr.clear();result.clear();status="Cleared".into()},"⌫"=>{expr.pop();result.clear()},"="=>match evaluate(&expr){Ok(n)=>result=n.to_string(),Err(x)=>status=x},_=>{expr.push_str(k);result.clear()}}}}},_=>{}}}ui.close();true}
+pub fn calculator()->bool{let Some(ui)=Ui::open("Lemon Calculator")else{return false};let mut expr=String::new();let mut result=String::new();let mut status="Type expression · Enter = result".to_owned();let keys=["7","8","9","/","C","4","5","6","*","(","1","2","3","-",")","0",".","=","+","⌫"];loop{shell(&ui,"Lemon Calculator","Basic arithmetic · keyboard or mouse",&status);ui.round(22,92,W-44,45,PANEL,10);ui.text(34,121,if expr.is_empty(){"0"}else{&expr},TEXT);if !result.is_empty(){ui.text(34,153,&result,ACCENT)}for(i,k)in keys.iter().enumerate(){let x=32+(i%5)as c_int*132;let y=178+(i/5)as c_int*72;ui.round(x,y,112,56,if *k=="="{ACCENT}else{PANEL},9);ui.text(x+48,y+35,k,if *k=="="{BG}else{TEXT})}unsafe{XFlush(ui.d);}let mut e=ui.event();match unsafe{e.type_}{EXPOSE=>continue,KEY=>{let mut k=unsafe{e.key};let(s,ch)=key(&mut k);if s==ESC{break}else if s==BACKSPACE{expr.pop();result.clear()}else if s==RETURN{match evaluate(&expr){Ok(n)=>result=n.to_string(),Err(x)=>status=x}}else if !ch.is_empty()&&ch.chars().all(|c|c.is_ascii_digit()||".+-*/()".contains(c)){expr.push_str(&ch);result.clear()}},BUTTON=>{let b=unsafe{e.button};if close_click(&b){break}if(178..=466).contains(&b.y)&&(32..=692).contains(&b.x){let i=((b.y-178)/72)as usize*5+((b.x-32)/132)as usize;if let Some(k)=keys.get(i){match *k{"C"=>{expr.clear();result.clear();status="Cleared".into()},"⌫"=>{expr.pop();result.clear()},"="=>match evaluate(&expr){Ok(n)=>result=n.to_string(),Err(x)=>status=x},_=>{expr.push_str(k);result.clear()}}}}},_=>{}}}ui.close();true}
 
 #[cfg(test)] mod tests{use super::evaluate;#[test]fn calculator_precedence(){assert_eq!(evaluate("2+3*4").unwrap(),14.0);assert_eq!(evaluate("(2+3)*4").unwrap(),20.0);assert_eq!(evaluate("-2.5*-4").unwrap(),10.0)}#[test]fn calculator_rejects_bad_input(){assert!(evaluate("1/0").is_err());assert!(evaluate("1+oops").is_err());assert!(evaluate("1e300*1e300").is_err())}}
