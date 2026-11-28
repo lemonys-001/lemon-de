@@ -1,5 +1,5 @@
 //! Small, direct-Xlib applets with no toolkit or third-party Rust dependencies.
-use crate::config::Config;
+use crate::{config::Config, update_checker};
 use std::{
     collections::BTreeSet, env, ffi::{c_char,c_int,c_long,c_uint,c_ulong,c_void,CString}, fs,
     path::{Path,PathBuf}, process::{Command,Stdio}, ptr,
@@ -165,21 +165,24 @@ pub fn control_center() -> bool {
     true
 }
 
-#[derive(Clone,Copy)]enum Field{Terminal,Launcher,Files,Browser,Wallpaper,Panel,Layout,PanelColor,Accent,Background,Autostart}
+#[derive(Clone,Copy)]enum Field{Terminal,Launcher,Files,Browser,Wallpaper,Panel,Layout,PanelColor,Accent,Background,Autostart,Updates}
 impl Field{
- fn all()->[Self;11]{[Self::Terminal,Self::Launcher,Self::Files,Self::Browser,Self::Wallpaper,Self::Panel,Self::Layout,Self::PanelColor,Self::Accent,Self::Background,Self::Autostart]}
- fn label(self)->&'static str{match self{Self::Terminal=>"Terminal command",Self::Launcher=>"Launcher command",Self::Files=>"File manager command",Self::Browser=>"Browser command",Self::Wallpaper=>"Wallpaper image",Self::Panel=>"Panel position",Self::Layout=>"Default layout",Self::PanelColor=>"Panel color",Self::Accent=>"Accent color",Self::Background=>"Background color",Self::Autostart=>"Add autostart (!clear clears all)"}}
- fn value(self,c:&Config)->String{match self{Self::Terminal=>c.terminal.clone(),Self::Launcher=>c.launcher.clone(),Self::Files=>c.file_manager.clone(),Self::Browser=>c.browser.clone(),Self::Wallpaper=>c.wallpaper.clone(),Self::Panel=>c.panel_position.clone(),Self::Layout=>c.layout.clone(),Self::PanelColor=>format!("0x{:06x}",c.panel_color),Self::Accent=>format!("0x{:06x}",c.accent_color),Self::Background=>format!("0x{:06x}",c.background_color),Self::Autostart=>format!("{} configured",c.autostart.len())}}
- fn edit_value(self,c:&Config)->String{if matches!(self,Self::Autostart){String::new()}else{self.value(c)}}
- fn set(self,c:&mut Config,v:&str)->Result<(),String>{let clean=v.replace(['\n','\r']," ");match self{Self::Terminal=>c.terminal=clean,Self::Launcher=>c.launcher=clean,Self::Files=>c.file_manager=clean,Self::Browser=>c.browser=clean,Self::Wallpaper=>c.wallpaper=clean,Self::Autostart=>{if v.trim()=="!clear"{c.autostart.clear()}else if !clean.trim().is_empty(){c.autostart.push(clean)}else{return Err("Enter a command or !clear".into())}},Self::Panel if v=="top"||v=="bottom"=>c.panel_position=v.into(),Self::Layout if v=="floating"||v=="tiled"=>c.layout=v.into(),Self::PanelColor|Self::Accent|Self::Background=>{let s=v.trim().trim_start_matches('#').trim_start_matches("0x");let n=u64::from_str_radix(s,16).ok().filter(|n|*n<=0xffffff).ok_or("Color must be 6 hex digits")?;match self{Self::PanelColor=>c.panel_color=n,Self::Accent=>c.accent_color=n,_=>c.background_color=n}},Self::Panel|Self::Layout=>return Err("Choose top/bottom or floating/tiled".into())}Ok(())}
+ fn all()->[Self;12]{[Self::Terminal,Self::Launcher,Self::Files,Self::Browser,Self::Wallpaper,Self::Panel,Self::Layout,Self::PanelColor,Self::Accent,Self::Background,Self::Autostart,Self::Updates]}
+ fn label(self)->&'static str{match self{Self::Terminal=>"Terminal command",Self::Launcher=>"Launcher command",Self::Files=>"File manager command",Self::Browser=>"Browser command",Self::Wallpaper=>"Wallpaper image",Self::Panel=>"Panel position",Self::Layout=>"Default layout",Self::PanelColor=>"Panel color",Self::Accent=>"Accent color",Self::Background=>"Background color",Self::Autostart=>"Add autostart (!clear clears all)",Self::Updates=>"Automatic update checks"}}
+ fn value(self,c:&Config)->String{match self{Self::Terminal=>c.terminal.clone(),Self::Launcher=>c.launcher.clone(),Self::Files=>c.file_manager.clone(),Self::Browser=>c.browser.clone(),Self::Wallpaper=>c.wallpaper.clone(),Self::Panel=>c.panel_position.clone(),Self::Layout=>c.layout.clone(),Self::PanelColor=>format!("0x{:06x}",c.panel_color),Self::Accent=>format!("0x{:06x}",c.accent_color),Self::Background=>format!("0x{:06x}",c.background_color),Self::Autostart=>format!("{} configured",c.autostart.len()),Self::Updates=>format!("{} · {}",if c.check_updates{"enabled"}else{"disabled"},update_checker::status_text())}}
+ fn edit_value(self,c:&Config)->String{match self{Self::Autostart=>String::new(),Self::Updates=>if c.check_updates{"enabled".into()}else{"disabled".into()},_=>self.value(c)}}
+ fn set(self,c:&mut Config,v:&str)->Result<(),String>{let clean=v.replace(['\n','\r']," ");match self{Self::Terminal=>c.terminal=clean,Self::Launcher=>c.launcher=clean,Self::Files=>c.file_manager=clean,Self::Browser=>c.browser=clean,Self::Wallpaper=>c.wallpaper=clean,Self::Autostart=>{if v.trim()=="!clear"{c.autostart.clear()}else if !clean.trim().is_empty(){c.autostart.push(clean)}else{return Err("Enter a command or !clear".into())}},Self::Updates if ["enabled","on","true","1"].contains(&v.trim())=>c.check_updates=true,Self::Updates if ["disabled","off","false","0"].contains(&v.trim())=>c.check_updates=false,Self::Panel if v=="top"||v=="bottom"=>c.panel_position=v.into(),Self::Layout if v=="floating"||v=="tiled"=>c.layout=v.into(),Self::PanelColor|Self::Accent|Self::Background=>{let s=v.trim().trim_start_matches('#').trim_start_matches("0x");let n=u64::from_str_radix(s,16).ok().filter(|n|*n<=0xffffff).ok_or("Color must be 6 hex digits")?;match self{Self::PanelColor=>c.panel_color=n,Self::Accent=>c.accent_color=n,_=>c.background_color=n}},Self::Panel|Self::Layout=>return Err("Choose top/bottom or floating/tiled".into()),Self::Updates=>return Err("Enter enabled or disabled".into())}Ok(())}
 }
 fn save_settings(config: &Config) -> String {
     match config.save() {
-        Ok(path) if !config.wallpaper.trim().is_empty() => match apply_wallpaper(&config.wallpaper) {
-            Ok(()) => format!("Saved settings and applied wallpaper · {}", path.display()),
-            Err(error) => format!("Saved settings · {error}"),
-        },
-        Ok(path) => format!("Saved {}", path.display()),
+        Ok(path) => {
+            update_checker::schedule_if_due(config.check_updates);
+            if config.wallpaper.trim().is_empty() { return format!("Saved {}", path.display()); }
+            match apply_wallpaper(&config.wallpaper) {
+                Ok(()) => format!("Saved settings and applied wallpaper · {}", path.display()),
+                Err(error) => format!("Saved settings · {error}"),
+            }
+        }
         Err(error) => error,
     }
 }
@@ -206,7 +209,7 @@ pub fn settings() -> bool {
     loop {
         shell(&ui, "Lemon Settings", "Desktop · apps · wallpaper", &status);
         for (index, field) in fields.iter().enumerate() {
-            let y = ROW + index as c_int * 34;
+            let y = ROW + index as c_int * 30;
             if index == selected { ui.round(22, y - 17, W - 44, 29, HILITE, 8); }
             ui.text(34, y, field.label(), if index == selected { ACCENT } else { TEXT });
             let value = if editing && index == selected { draft.clone() } else { field.value(&config) };
@@ -239,8 +242,8 @@ pub fn settings() -> bool {
             BUTTON => {
                 let button = unsafe { event.button };
                 if close_click(&button) { break; }
-                if button.y >= ROW - 17 && button.y < ROW + fields.len() as c_int * 34 {
-                    selected = ((button.y - (ROW - 17)) / 34) as usize;
+                if button.y >= ROW - 17 && button.y < ROW - 17 + fields.len() as c_int * 30 {
+                    selected = ((button.y - (ROW - 17)) / 30) as usize;
                     draft = fields[selected].edit_value(&config);
                     editing = true;
                     status = "Type a value · Enter applies · Ctrl+S saves".into();

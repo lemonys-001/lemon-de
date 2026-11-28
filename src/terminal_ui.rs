@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::{config::Config, update_checker};
 use std::collections::BTreeSet;
 use std::env;
 use std::fs;
@@ -63,7 +63,10 @@ fn read_choice(prompt: &str) -> String {
 
 fn save(config: &Config) {
     match config.save() {
-        Ok(path) => println!("Saved {}", path.display()),
+        Ok(path) => {
+            println!("Saved {}", path.display());
+            update_checker::schedule_if_due(config.check_updates);
+        }
         Err(error) => eprintln!("Could not save settings: {error}"),
     }
 }
@@ -98,6 +101,8 @@ pub fn settings() {
         println!("10. Background RGB color   [0x{:06x}]", config.background_color);
         println!("11. Add an autostart command (currently {})", config.autostart.len());
         println!("12. Clear autostart commands");
+        println!("13. Automatic update checks [{}]", if config.check_updates { "on" } else { "off" });
+        println!("    {}", update_checker::status_text());
         println!(" 0. Back");
         match read_choice("Select a setting: ").as_str() {
             "1" => { let v = read_choice("Terminal command (blank = auto-detect): "); set_setting(&mut config, "terminal", v); }
@@ -119,6 +124,7 @@ pub fn settings() {
                     config.autostart.clear(); save(&config);
                 }
             }
+            "13" => { config.check_updates = !config.check_updates; save(&config); }
             "0" => return,
             _ => println!("Choose one of the listed numbers."),
         }

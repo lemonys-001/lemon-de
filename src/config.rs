@@ -15,6 +15,7 @@ pub struct Config {
     pub panel_color: u64,
     pub accent_color: u64,
     pub background_color: u64,
+    pub check_updates: bool,
 }
 
 impl Default for Config {
@@ -31,6 +32,7 @@ impl Default for Config {
             panel_color: 0x172033,
             accent_color: 0x60a5fa,
             background_color: 0x111827,
+            check_updates: true,
         }
     }
 }
@@ -65,6 +67,7 @@ impl Config {
                     "panel_color" => if let Some(color) = parse_color(&value) { config.panel_color = color },
                     "accent_color" => if let Some(color) = parse_color(&value) { config.accent_color = color },
                     "background_color" => if let Some(color) = parse_color(&value) { config.background_color = color },
+                    "check_updates" => if let Some(enabled) = parse_bool(&value) { config.check_updates = enabled },
                     "autostart" if !value.is_empty() => config.autostart.push(value),
                     _ => {}
                 }
@@ -89,16 +92,24 @@ impl Config {
         fs::create_dir_all(parent).map_err(|e| format!("Cannot create {}: {e}", parent.display()))?;
         let clean = |value: &str| value.replace(['\n', '\r'], " ");
         let mut output = format!(
-            "# LDE settings; commands run through your shell as your user.\nterminal = {}\nlauncher = {}\nfile_manager = {}\nbrowser = {}\nwallpaper = {}\npanel_position = {}\nlayout = {}\npanel_color = 0x{:06x}\naccent_color = 0x{:06x}\nbackground_color = 0x{:06x}\n",
+            "# LDE settings; commands run through your shell as your user.\nterminal = {}\nlauncher = {}\nfile_manager = {}\nbrowser = {}\nwallpaper = {}\npanel_position = {}\nlayout = {}\npanel_color = 0x{:06x}\naccent_color = 0x{:06x}\nbackground_color = 0x{:06x}\ncheck_updates = {}\n",
             clean(&self.terminal), clean(&self.launcher), clean(&self.file_manager),
             clean(&self.browser), clean(&self.wallpaper), clean(&self.panel_position),
-            clean(&self.layout), self.panel_color, self.accent_color, self.background_color);
+            clean(&self.layout), self.panel_color, self.accent_color, self.background_color, self.check_updates);
         for service in &self.autostart {
             let service = clean(service);
             if !service.trim().is_empty() { output.push_str(&format!("autostart = {service}\n")); }
         }
         fs::write(&path, output).map_err(|e| format!("Cannot write {}: {e}", path.display()))?;
         Ok(path)
+    }
+}
+
+fn parse_bool(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "true" | "yes" | "1" | "on" | "enabled" => Some(true),
+        "false" | "no" | "0" | "off" | "disabled" => Some(false),
+        _ => None,
     }
 }
 
@@ -127,6 +138,9 @@ panel_color = 0x172033
 accent_color = 0x60a5fa
 background_color = 0x111827
 
+# Check GitHub for a newer release at most once per day (set false to disable).
+check_updates = true
+
 # Optional services are separate programs, keeping the LDE core small.
 # Add one command per line, for example:
 # autostart = dunst
@@ -136,7 +150,19 @@ background_color = 0x111827
 
 #[cfg(test)]
 mod tests {
-    use super::parse_color;
+    use super::{parse_bool, parse_color, Config};
+
+    #[test]
+    fn automatic_update_checks_default_on() {
+        assert!(Config::default().check_updates);
+    }
+
+    #[test]
+    fn parses_update_toggle_values() {
+        assert_eq!(parse_bool("true"), Some(true));
+        assert_eq!(parse_bool("off"), Some(false));
+        assert_eq!(parse_bool("unexpected"), None);
+    }
 
     #[test]
     fn parses_rgb_forms_and_rejects_invalid_values() {
