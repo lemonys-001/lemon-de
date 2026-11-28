@@ -22,7 +22,7 @@ jobs:
         with:
           components: rustfmt
       - name: Install X11 development files
-        run: sudo apt-get update && sudo apt-get install -y libx11-dev xvfb xauth xdotool x11-utils
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxcomposite-dev libxrender-dev libxfixes-dev libxdamage-dev xvfb xauth xdotool x11-utils
       - name: Check
         shell: bash
         run: |

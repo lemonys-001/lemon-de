@@ -12,18 +12,22 @@ LDE is an early X11 shell prototype, not a finished general-purpose desktop envi
 - Interactive terminal menu in the primary `lemon` binary for starting the desktop, installing optional packages, settings, and built-in tools.
 - Native Xlib GUI and terminal versions of Lemon Launcher, Lemon Files, Lemon Settings, and Lemon Calculator; no Rust crates or GUI toolkit added.
 - Lemon Settings supports application commands/defaults, panel placement/colors, layout, wallpaper paths, and autostart commands; wallpaper changes apply live when optional `feh` or `nitrogen` is present.
-- A native Control Center (`Super+O`) discovers optional sound, network, Bluetooth, display, appearance, power, notification, clipboard, accessibility, desktop-icon, screen-lock, logout, and optional X11 compositor tools without bundling them.
+- A native Control Center (`Super+O`) discovers optional sound, network, Bluetooth, display, appearance, power, notification, clipboard, accessibility, desktop-icon, screen-lock, logout, and X11 compositor tools without bundling them.
 - Publishes basic EWMH workspace/name/active-window properties, assigns `_NET_WM_DESKTOP` to managed clients, and sends ICCCM `WM_DELETE_WINDOW` before force-killing unresponsive clients.
 - Package-manager integration for apt, dnf, pacman, zypper, apk, and Termux `pkg`, with confirmation and optional default selection after installation.
 - Built-in Rust GUI command launcher, GUI file browser, GUI settings editor, basic calculator, and terminal fallbacks. The built-in app windows use a shared in-window top bar with a close action and a consistent 720×560 starting size; users can resize them with Alt+right-drag.
 - Optional wallpaper, desktop, notification and power helpers remain separate programs; source installer, X session entry, Linux documentation and Termux/VNC guide.
 
-The 0.5.0 candidate is built and tested on x86_64 and AArch64 by GitHub Actions, including Xvfb smoke tests for the GUI applets and Control Center, session survival, and mouse interaction while clients launch. Spawned applications are isolated into separate process groups to avoid process-group cleanup taking down the VNC window manager, and exited children are reaped by the event loop. The X11 applets are ordinary clients using Xlib and have no continuous animation loops. Optional package-manager workflows are not run against real systems in CI; package availability depends on distribution and repositories.
+The 0.5.0 release was built and tested on x86_64 and AArch64 by GitHub Actions, including Xvfb smoke tests for the GUI applets and Control Center, session survival, and mouse interaction while clients launch. The current development branch adds an unreleased inbuilt compositor, with its own Xvfb startup smoke test. Spawned applications are isolated into separate process groups to avoid process-group cleanup taking down the VNC window manager, and exited children are reaped by the event loop. The X11 applets are ordinary clients using Xlib and have no continuous animation loops. Optional package-manager workflows are not run against real systems in CI; package availability depends on distribution and repositories.
+
+## Unreleased in this branch
+
+- The inbuilt X11 lite compositor can be started with `lemon --compositor` or toggled from Control Center (`lemon --compositor-toggle`). It uses Composite, Damage, Fixes, and Render for basic alpha compositing, and exits if another compositor already owns the screen. It does not add blur, shadows, or animations, and it does not change LDE into a Wayland compositor.
 
 ## Not available yet
 
 - **LDE does not yet provide Rust replacements for every desktop application.** Its native Files app is a lightweight file browser, not a full-featured file manager; LDE still relies on separate terminal emulators, web browsers, and optional notification/power services. Installing them is optional and user-controlled.
-- Wayland compositor, external-app titlebar/window buttons, built-in compositor effects (optional X11 tools can be launched), and a bundled terminal emulator, browser, or full-featured file manager.
+- Wayland compositor, external-app titlebar/window buttons, advanced compositor effects such as blur/shadows/animations, and a bundled terminal emulator, browser, or full-featured file manager.
 - Integrated notification daemon, audio/network/battery/display/Bluetooth services, clipboard manager, desktop icons, and polkit integration. The Control Center only opens compatible optional system tools; availability and behavior depend on the installed desktop stack.
 - Full accessibility settings, screen-reader configuration, localization, and assistive-input integration.
 - Complete EWMH/ICCCM compliance, multi-monitor/hotplug support, and persistent named workspaces. Current EWMH support is deliberately partial (desktop metadata and focus state), not a claim of broad interoperability.

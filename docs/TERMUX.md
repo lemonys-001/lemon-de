@@ -10,7 +10,7 @@ This is an experimental community route, not a native Android desktop. LDE speak
 
    ```sh
    apt update
-   apt install build-essential pkg-config libx11-dev rustc cargo tigervnc-standalone-server xterm pcmanfm rofi
+   apt install build-essential pkg-config libx11-dev libxcomposite-dev libxdamage-dev libxfixes-dev libxrender-dev rustc cargo tigervnc-standalone-server xterm pcmanfm rofi
    ```
 
    Package availability varies by proot image and CPU architecture. If the distro Rust package is too old, install a current Rust toolchain inside that same userspace.

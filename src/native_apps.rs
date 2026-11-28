@@ -72,6 +72,7 @@ struct SystemAction {
     commands: &'static [(&'static str, &'static [&'static str])],
 }
 const SYSTEM_ACTIONS: &[SystemAction] = &[
+    SystemAction { title: "LDE Compositor", detail: "Toggle built-in XRender alpha effects", commands: &[("lemon", &["--compositor"])] },
     SystemAction { title: "Sound", detail: "Mixer and audio devices", commands: &[("pavucontrol", &[]), ("mate-volume-control", &[]), ("xfce4-mixer", &[])] },
     SystemAction { title: "Network", detail: "Wi-Fi and connection settings", commands: &[("nm-connection-editor", &[]), ("connman-gtk", &[])] },
     SystemAction { title: "Bluetooth", detail: "Pair and manage devices", commands: &[("blueman-manager", &[])] },
@@ -87,7 +88,19 @@ const SYSTEM_ACTIONS: &[SystemAction] = &[
     SystemAction { title: "Compositor effects", detail: "Optional shadows and transparency", commands: &[("picom", &[]), ("xcompmgr", &[])] },
 ];
 
+fn system_action_available(action: &SystemAction, installed: &[String]) -> bool {
+    if action.title == "LDE Compositor" { return env::current_exe().map(|path| path.is_file()).unwrap_or(false); }
+    action.commands.iter().any(|(program, _)| installed.iter().any(|item| item.as_str() == *program))
+}
+
 fn launch_system_action(action: &SystemAction, installed: &[String]) -> Result<String, String> {
+    if action.title == "LDE Compositor" {
+        let executable = env::current_exe().map_err(|error| format!("Cannot locate LDE executable: {error}"))?;
+        let mut command = Command::new(executable);
+        command.arg("--compositor-toggle").stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        return spawn_isolated(&mut command).map(|_| "Starting LDE's built-in compositor".to_owned())
+            .map_err(|error| format!("Cannot start LDE compositor: {error}"));
+    }
     for (program, args) in action.commands {
         if !installed.iter().any(|item| item.as_str() == *program) { continue; }
         let mut command = Command::new(*program);
@@ -109,7 +122,7 @@ pub fn control_center() -> bool {
             let row = index / 2;
             let x = 22 + col as c_int * 338;
             let y = 102 + row as c_int * 56;
-            let available = action.commands.iter().any(|(program, _)| installed.iter().any(|item| item.as_str() == *program));
+            let available = system_action_available(action, &installed);
             let color = if index == selected { HILITE } else { PANEL };
             ui.round(x, y, 320, 50, color, 9);
             ui.text(x + 14, y + 20, action.title, if available { TEXT } else { MUTED });

@@ -35,6 +35,13 @@ if command -v xvfb-run >/dev/null 2>&1; then
   gui_smoke --settings
   gui_smoke --control-center
   gui_smoke --calculator
+  compositor_status=0
+  timeout 2s xvfb-run -a "$binary" --compositor >"$tmp/compositor.log" 2>&1 || compositor_status=$?
+  if [[ $compositor_status -ne 124 ]] || ! grep -q 'LDE lite compositor active' "$tmp/compositor.log"; then
+    detail=$(tail -n 20 "$tmp/compositor.log" | tr "\\n" " ")
+    echo "::error title=Built-in compositor smoke failed::status $compositor_status: $detail"
+    exit 1
+  fi
   xvfb-run -a sh -c '
     set -eu
     binary=$1

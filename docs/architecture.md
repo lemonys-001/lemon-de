@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-`lemon` is one Rust process. `src/main.rs` declares the small subset of the Xlib C ABI it uses and links to system `libX11`. There are no external Rust crates. The event loop selects root-window substructure events, maps/configures client windows, sets focus and draws a simple panel. Programs such as terminals, launchers, wallpaper setters, desktop-icon providers and optional notification/power helpers are intentionally launched as separate user processes rather than embedded. The user's simple `~/.config/lde/config` settings are parsed with the standard library; no GUI toolkit or new Rust crates are added.
+`lemon` is one Rust binary with two independent X11 roles. `src/main.rs` declares the Xlib subset for the window manager and panel; `src/compositor.rs` is an opt-in event-driven X Composite/X Damage/X Fixes/X Render compositor started with `lemon --compositor`. It redirects root children, draws named window pixmaps to the compositor overlay, and relies on Damage plus structure notifications to repaint. The compositor handles alpha-capable visuals only; there are no blur, shadow, animation, or scheduling pipelines. There are no external Rust crates. Programs such as terminals, launchers, wallpaper setters, desktop-icon providers and optional notification/power helpers are intentionally launched as separate user processes rather than embedded. The user's simple `~/.config/lde/config` settings are parsed with the standard library; no GUI toolkit or new Rust crates are added.
 
 This is a compact prototype rather than a mature window manager: X11 error handling is intentionally minimal, client protocol coverage is incomplete, placement is simple, and some session behavior depends on the display manager/X server. Do not treat it as a security boundary.
 
@@ -20,6 +20,6 @@ A host with Rust and the X11 linker library is required. The help/version paths 
 ## Design constraints
 
 - Keep the core runtime small and avoid mandatory heavyweight services.
-- Use system Xlib for the X11 protocol path; builds need target-compatible Xlib.
+- Use system Xlib and X11 extension libraries for the X11 path; source builds need target-compatible Xlib, XComposite, XDamage, XFixes, and XRender development files.
 - Do not promise portability solely because Rust compiles: the target must have an X server, Xlib ABI, toolchain and usable input/session setup.
 - Features that need long-running services should be optional and documented.
