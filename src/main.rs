@@ -4,12 +4,14 @@ mod config;
 mod compositor;
 mod native_apps;
 mod terminal_ui;
+mod update_checker;
 
 use config::Config;
 use std::collections::{HashMap, HashSet};
 use std::ffi::{c_char, c_int, c_long, c_short, c_uint, c_ulong, c_void, CString};
 use std::process::{Command, Stdio};
 use std::ptr;
+use std::time::{Duration, Instant};
 
 #[repr(C)] struct Display { _private: [u8; 0] }
 type Window = c_ulong;
@@ -609,6 +611,10 @@ mod startup_tests {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--update-check-worker") {
+        update_checker::run_worker();
+        return;
+    }
     if args.iter().any(|a| a == "--compositor-toggle") {
         if let Err(error) = compositor::toggle() { eprintln!("LDE compositor: {error}"); std::process::exit(1); }
         return;
@@ -628,6 +634,7 @@ fn main() {
         match Config::ensure_file() { Ok(path) => println!("LDE config ready: {}", path.display()), Err(e) => { eprintln!("LDE: {e}"); std::process::exit(1); } }
         return;
     }
+    update_checker::schedule_if_due(Config::load().check_updates);
     let display_is_set = std::env::var_os("DISPLAY").is_some();
     if args.iter().any(|a| a == "--control-center") {
         if !display_is_set || !native_apps::control_center() { terminal_ui::run_menu(); }
@@ -702,8 +709,13 @@ pub(crate) fn start_desktop() {
         let mut workspace_of: HashMap<Window, usize> = HashMap::new();
         let mut saved_geometry: HashMap<Window, Geometry> = HashMap::new();
         let mut minimized: Vec<Window> = Vec::new();
+        let mut update_check_scan = Instant::now();
         loop {
             reap_children();
+            if update_check_scan.elapsed() >= Duration::from_secs(60 * 60) {
+                update_checker::schedule_if_due(Config::load().check_updates);
+                update_check_scan = Instant::now();
+            }
             if XPending(display) == 0 {
                 let mut fd = PollFd { fd: XConnectionNumber(display), events: 1, revents: 0 };
                 let ready = poll(&mut fd, 1, 60_000);

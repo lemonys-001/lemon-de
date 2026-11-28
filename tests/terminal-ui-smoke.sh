@@ -4,14 +4,18 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 binary=${LEMON_BIN:-"$root/target/release/lemon"}
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
+export XDG_CACHE_HOME="$tmp/cache"
+init_path=$(XDG_CONFIG_HOME="$tmp/initial-config" "$binary" --init-config | sed 's/^LDE config ready: //')
+grep -qx 'check_updates = true' "$init_path"
 
-printf '1\nxterm -fa mono\n6\nbottom\n9\n#abcdef\n11\ntrue\n0\n' |
+printf '13\n1\nxterm -fa mono\n6\nbottom\n9\n#abcdef\n11\ntrue\n0\n' |
   XDG_CONFIG_HOME="$tmp/config" "$binary" --settings >/dev/null
 config="$tmp/config/lde/config"
 grep -qx 'terminal = xterm -fa mono' "$config"
 grep -qx 'panel_position = bottom' "$config"
 grep -qx 'accent_color = 0xabcdef' "$config"
 grep -qx 'autostart = true' "$config"
+grep -qx 'check_updates = false' "$config"
 
 path=$(XDG_CONFIG_HOME="$tmp/config" "$binary" --config-path)
 [[ "$path" == "$config" ]]

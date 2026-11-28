@@ -22,6 +22,7 @@ The 0.5.0 release was built and tested on x86_64 and AArch64 by GitHub Actions, 
 
 ## Unreleased in this branch
 
+- Automatic GitHub release checks (default on, at most daily) run in a short-lived background worker, update the cached status in both Settings interfaces, use `notify-send` when available, and do not download or install releases. Disable with `check_updates = false` or either Settings UI/TUI; the active X11 session rechecks due status hourly without keeping a polling process alive.
 - The inbuilt X11 lite compositor can be started with `lemon --compositor` or toggled from Control Center (`lemon --compositor-toggle`). It uses Composite, Damage, Fixes, and Render for basic alpha compositing, and exits if another compositor already owns the screen. It does not add blur, shadows, or animations, and it does not change LDE into a Wayland compositor.
 
 ## Not available yet

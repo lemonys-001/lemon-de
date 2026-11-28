@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add an automatic GitHub release checker that runs in a detached, timeout-bounded worker at most once per day; it reports updates through `notify-send` when available and cached status, without downloading or installing them.
+- Add persistent `check_updates` preference, enabled by default and switchable in both GUI and TUI settings; display cached update-check status without blocking the interface.
+- Keep the checker lightweight: no Rust dependencies, no resident polling process, one small cached status file, and hourly due checks only while the X11 session is active.
 - Add an opt-in, inbuilt event-driven X11 compositor using Composite, Damage, Fixes, and Render extensions. Basic alpha-capable windows are composited to the X server overlay; advanced effects remain intentionally out of scope.
 - Add `lemon --compositor` plus a Control Center toggle (`lemon --compositor-toggle`), and Xvfb smoke coverage for compositor startup.
 
